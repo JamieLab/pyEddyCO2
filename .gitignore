@@ -1,3 +1,6 @@
 *.pyc
 /OUTPUT
 /OUTPUT/*
+/fluxengine
+/fluxengine/*
+fluxengine.log
