@@ -15,8 +15,8 @@ def timeseries_start(eddy, track_no):
     eddy = pyEddy_m.dict_split(eddy,f)
     return eddy
 
-def timeseries_save(eddy,desc,s_loc):
-    out = Dataset(os.path.join(s_loc,str(eddy['track'][0]) +'.nc'),mode='w',format='NETCDF4_CLASSIC')
+def timeseries_save(eddy,desc,s_loc,track):
+    out = Dataset(os.path.join(s_loc,str(track) +'.nc'),mode='w',format='NETCDF4_CLASSIC')
     time_dim = out.createDimension('d_time', len(eddy['time']))
     n_sample = out.createDimension('n_sample', eddy['effective_contour_latitude'].shape[1])
 
@@ -441,6 +441,7 @@ def add_noaa(loc,s_loc,track):
         m = c.createVariable('month_xco2',np.float32,('month_time'))
         m[:] = np.array(xco2)
     c['month_xco2'].units = 'uatm'
+    c.close()
 
 def add_era5(loc,s_loc,track,var = 'msl'):
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'r')
@@ -477,6 +478,7 @@ def add_era5(loc,s_loc,track,var = 'msl'):
         m[:] = np.array(xco2)
     c['month_'+var].units = units
     c['month_'+var].long_name = 'ERA5 ' + long
+    c.close()
 
 def add_province(file,s_loc,track,prov_var = False,d2=datetime.datetime(1970,1,15,0,0,0)):
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
@@ -588,14 +590,18 @@ def calc_fco2(net_loc,s_loc,track,province_var = False,input_var = [],add_text='
         c.close()
 
 def fluxengine_file_generate(s_loc,track,sub_sst,sss,ws,press,xco2atm,fco2,time = 'month_time',lat='month_latitude',lon='month_longitude',fluxengine_file = 'fluxengine/input.nc'):
+    # import time as tm
+    # tm.sleep(15)
     vars = [sub_sst,sss,ws,press,xco2atm,fco2,time,lat,lon]
     label = ['t_subskin','salinity','wind_speed','air_pressure','xCO2_atm','fco2sw','time','latitude','longitude']
     inps = {}
+
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'r')
     for i in range(len(vars)):
         inps[label[i]] = np.array(c[vars[i]])
     c.close()
     inps['wind_speed_2'] = inps['wind_speed']**2
+
     c = Dataset(fluxengine_file,'w')
     time_dim = c.createDimension('time', 1)
     lat_dim = c.createDimension('latitude',len(inps['time']))
@@ -615,15 +621,18 @@ def fluxengine_file_generate(s_loc,track,sub_sst,sss,ws,press,xco2atm,fco2,time 
             i2 = np.repeat(i[:, np.newaxis], len(inps['time']), axis=1)
             m[:] = np.array(i2)
     c.close()
+    del c
 
 def fluxengine_run(s_loc,track,config_file = 'fluxengine_config_night.conf',start_yr = 1990, end_yr = 2020,var_out = ['OF'],fluxengine_loc = 'fluxengine/flux/1990/01/OceanFluxGHG-month01-jan-1990-v0.nc',
-    add_text = '_in'):
+    add_text = '_in',fluxengine_input_file=False):
+    import os
+
     """
     Function to run fluxengine for a eddy.
     """
     from fluxengine.core import fe_setup_tools as fluxengine
-    returnCode, fe = fluxengine.run_fluxengine(config_file, start_yr, end_yr, singleRun=True,verbose=True)
-
+    returnCode,fe = fluxengine.run_fluxengine(config_file, start_yr, end_yr, singleRun=True,verbose=True)
+    del fe
     print(returnCode)
     if returnCode == 0:
         c = Dataset(fluxengine_loc,'r')
@@ -639,6 +648,7 @@ def fluxengine_run(s_loc,track,config_file = 'fluxengine_config_night.conf',star
             d['fluxengine_'+v+add_text].units = c[v].units
         c.close()
         d.close()
+        os.remove(fluxengine_input_file)
     else:
         raise RuntimeError('Fluxengine Failed...')
 

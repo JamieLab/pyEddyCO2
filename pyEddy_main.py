@@ -53,9 +53,10 @@ def box_split(eddy,latb,lonb,dateb):
 def dict_split(eddy,f):
     # Function to split the eddy database based on indexes of values. For example used by eddy_length_min to
     # split full tracks that meet the timelength critera, or box_split for eddy tracks that fall within the bounds.
+    eddy2 = {}
     for v in eddy.keys():
-        eddy[v] = np.squeeze(eddy[v][f])
-    return eddy
+        eddy2[v] = np.squeeze(eddy[v][f])
+    return eddy2
 
 def date_convert(dates,d = datetime.datetime(1950,1,1,0,0,0)):
     out = (dates - d).days
