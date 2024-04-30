@@ -9,6 +9,13 @@ import matplotlib.path as mpltPath
 import matplotlib.pyplot as plt
 import pyEddy_main as pyEddy_m
 import calendar
+import sys
+
+"""
+Paths to the OceanICU framework...
+"""
+sys.path.append('C:\\Users\\df391\\OneDrive - University of Exeter\\Post_Doc_ESA_Contract\\OceanICU')
+sys.path.append('C:\\Users\\df391\\OneDrive - University of Exeter\\Post_Doc_ESA_Contract\\OceanICU\Data_Loading')
 
 def timeseries_start(eddy, track_no):
     f = np.squeeze(np.argwhere(eddy['track'] == track_no))
@@ -141,8 +148,10 @@ def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
     # Function to extract sstCCI data for the eddy and the surrounding environment.
     sstin = np.empty((len(eddy['time']),6))
     sstin[:] = np.nan
-    sstout = np.empty((len(eddy['time']),6))
-    sstout[:] = np.nan
+    sstout = np.copy(sstin)
+    sstin_unc = np.copy(sstin)
+    sstout_unc = np.copy(sstin)
+
     for t in range(0,len(eddy['time'])):
         print(t)
         date = pyEddy_m.date_con(eddy['time'][t])
@@ -192,8 +201,11 @@ def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
             #lons,lats = ellipse(lonc,latc,rad[0],rad[1])
             inp = pointsineddy(lon,lat,lons,lats)
             sstin[t,:],sstout[t,:] = inouteddy(sst,inp)
+            sstin_unc[t,:],sstout_unc[t,:] = inouteddy(sst_u,inp)
     eddy,desc = inoutsplit(eddy,sstin,'cci_sst_in',desc,'kelvin')
+    eddy,desc = inoutsplit(eddy,sstin_unc,'cci_sst_in_unc',desc,'kelvin')
     eddy,desc = inoutsplit(eddy,sstout,'cci_sst_out',desc,'kelvin')
+    eddy,desc = inoutsplit(eddy,sstout_unc,'cci_sst_out_unc',desc,'kelvin')
     return eddy,desc
 
 def add_cmems(loc,eddy,desc,var='so',units='psu',radm = 3,plot=0,log10=False,depth=True):
@@ -284,51 +296,52 @@ def add_wind(loc,eddy,desc,radm = 3,plot=0):
             radmax = radius_check(lonc,latc,lons,lats)
             # else:
             #     radmax = rad[1]
-            c = Dataset(file[0])
-            lon =c.variables['longitude'][:]; lat = c.variables['latitude'][:]
-            #lat,lon,f,g,lon_len = load_file(c,'latitude','longitude',latc,lonc,radmax,radm)
+            if len(file) >0:
+                c = Dataset(file[0])
+                lon =c.variables['longitude'][:]; lat = c.variables['latitude'][:]
+                #lat,lon,f,g,lon_len = load_file(c,'latitude','longitude',latc,lonc,radmax,radm)
 
-            # print(lon_len)
-            # print(len(g))
-            print(lon[0])
-            print(lonc - (radmax*radm))
-            print(lon[-1])
-            print(lonc + (radmax*radm))
-            if (lonc - (radmax*radm) < lon[0]) or (lonc + (radmax*radm) > lon[-1]):
-                print('First')
-                sst = np.squeeze(np.nanmean(c.variables['ws'][:,:,:],axis=2))
-                #print(sst.shape)
-                #lon =c.variables['longitude'][:]; lat = c.variables['latitude'][:]
-                lon,sst = grid_switch(lon,sst)
-                lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
-                # print(f)
-                # print(g)
-                sst=sst[np.ix_(f,g)]
-            else:
-                print('Second')
-                lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
-                sst = np.squeeze(np.nanmean(c.variables['ws'][f,g,:],axis=2))
-            #print(f)
-            #print(g)
-            c.close()
-            print(sst.shape)
-            # sst[sst.mask==True] = np.nan
-            # sst = sst.data
+                # print(lon_len)
+                # print(len(g))
+                print(lon[0])
+                print(lonc - (radmax*radm))
+                print(lon[-1])
+                print(lonc + (radmax*radm))
+                if (lonc - (radmax*radm) < lon[0]) or (lonc + (radmax*radm) > lon[-1]):
+                    print('First')
+                    sst = np.squeeze(np.nanmean(c.variables['ws'][:,:,:],axis=2))
+                    #print(sst.shape)
+                    #lon =c.variables['longitude'][:]; lat = c.variables['latitude'][:]
+                    lon,sst = grid_switch(lon,sst)
+                    lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
+                    # print(f)
+                    # print(g)
+                    sst=sst[np.ix_(f,g)]
+                else:
+                    print('Second')
+                    lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
+                    sst = np.squeeze(np.nanmean(c.variables['ws'][f,g,:],axis=2))
+                #print(f)
+                #print(g)
+                c.close()
+                print(sst.shape)
+                # sst[sst.mask==True] = np.nan
+                # sst = sst.data
 
 
-            if plot == 1:
-                f,ax1 = plt.subplots()
-                m = ax1.pcolor(lon,lat,sst)
-                plt.colorbar(m)
-                #plt.colorbar()
+                if plot == 1:
+                    f,ax1 = plt.subplots()
+                    m = ax1.pcolor(lon,lat,sst)
+                    plt.colorbar(m)
+                    #plt.colorbar()
 
-                #cix,ciy = ellipse(lonc,latc,rad[0],rad[1])
-                #ax1.plot(cix,ciy,'r--')
-                ax1.plot(lons,lats,'b--')
-                plt.show()
+                    #cix,ciy = ellipse(lonc,latc,rad[0],rad[1])
+                    #ax1.plot(cix,ciy,'r--')
+                    ax1.plot(lons,lats,'b--')
+                    plt.show()
 
-            inp = pointsineddy(lon,lat,lons,lats)
-            sstin[t,:],sstout[t,:] = inouteddy(sst,inp)
+                inp = pointsineddy(lon,lat,lons,lats)
+                sstin[t,:],sstout[t,:] = inouteddy(sst,inp)
     eddy,desc = inoutsplit(eddy,sstin,'ccmp_wind_in',desc,'ms-1')
     eddy,desc = inoutsplit(eddy,sstout,'ccmp_wind_out',desc,'ms-1')
     return eddy,desc
@@ -357,9 +370,10 @@ def grid_switch(lon,var):
     # lon_temp[0:var_sh] = lon[var_sh:]
     return lon,var_temp
 
-def produce_monthly(track,s_loc,vars=[]):
-    vars.append('latitude')
-    vars.append('longitude')
+def produce_monthly(track,s_loc,vars=[],unc=False,unc_days = 3):
+    if not unc:
+        vars.append('latitude')
+        vars.append('longitude')
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'r')
     time = np.array(c['time'])
 
@@ -390,7 +404,11 @@ def produce_monthly(track,s_loc,vars=[]):
         data = np.array(c[v])
         data_o = np.zeros((len(out_time))); data_o[:] = np.nan
         for i in range(len(out_time)):
-            data_o[i] = np.nanmean(data[time_m[i]])
+            if unc:
+                data_o[i] = np.nanmean(data[time_m[i]]) / np.sqrt(len(time_m[i])/unc_days)
+            else:
+                data_o[i] = np.nanmean(data[time_m[i]])
+
         out[v] = data_o
     c.close()
 
@@ -498,7 +516,7 @@ def add_province(file,s_loc,track,prov_var = False,d2=datetime.datetime(1970,1,1
         timeg[i] = pyEddy_m.date_convert(t)
     d.close()
     #print(time)
-    print(timeg)
+    #print(timeg)
     for i in range(len(time)):
 
 
@@ -521,7 +539,7 @@ def add_province(file,s_loc,track,prov_var = False,d2=datetime.datetime(1970,1,1
     else:
         m = c.createVariable('month_province',np.float32,('month_time'))
         m[:] = np.array(prov)
-    c['month_province'].units = 'uatm'
+    #c['month_province'].units = 'uatm'
     c['month_province'].file = 'Data from ' + file
     c['month_province'].long_name = 'fCO2(sw) interpolation province'
     c.close()
@@ -573,27 +591,32 @@ def calc_fco2(net_loc,s_loc,track,province_var = False,input_var = [],add_text='
         lut = load(open(os.path.join(net_loc,'unc_lut',f'prov_{v}_lut.pkl'),'rb'))
         lut = lut[0]
         fco2_para[f] = np.squeeze(nnt.lut_retr(lut,mod_inp))
-        fco2_val[f] = val[int(v),1]
+        g = np.where(val[:,0] == v)
+        fco2_val[f] = val[g,1]
         outs = {}
         outs['month_fco2_sw'+add_text] = fco2
         outs['month_fco2_net_unc'+add_text] = fco2_net
         outs['month_fco2_para_unc'+add_text] = fco2_para
         outs['month_fco2_val_unc'+add_text] = fco2_val
-        c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
-        for v in list(outs.keys()):
-            if v in c.variables.keys():
-                c[v][:] = np.array(outs[v])
-            else:
-                m = c.createVariable(v,np.float32,('month_time'))
-                m[:] = np.array(outs[v])
-            c[v].units = 'uatm'
-        c.close()
+        outs['month_fco2_tot_unc' + add_text] = np.sqrt(fco2_net**2 + fco2_para**2 + fco2_val**2)
+    c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
+    for v in list(outs.keys()):
+        if v in c.variables.keys():
+            c[v][:] = np.array(outs[v])
+        else:
+            m = c.createVariable(v,np.float32,('month_time'))
+            m[:] = np.array(outs[v])
+        c[v].units = 'uatm'
+    c.close()
 
-def fluxengine_file_generate(s_loc,track,sub_sst,sss,ws,press,xco2atm,fco2,time = 'month_time',lat='month_latitude',lon='month_longitude',fluxengine_file = 'fluxengine/input.nc'):
+def fluxengine_file_generate(s_loc,track,sub_sst,sss,ws,press,xco2atm,fco2,fco2_net,fco2_para,fco2_val,fco2_tot,ice='ice',time = 'month_time',lat='month_latitude',lon='month_longitude',fluxengine_file = 'fluxengine/output.nc', sst_unc = False):
     # import time as tm
     # tm.sleep(15)
-    vars = [sub_sst,sss,ws,press,xco2atm,fco2,time,lat,lon]
-    label = ['t_subskin','salinity','wind_speed','air_pressure','xCO2_atm','fco2sw','time','latitude','longitude']
+    vars = [sub_sst,sss,ws,press,xco2atm,fco2,fco2_net,fco2_para,fco2_val,fco2_tot,ice,time,lat,lon]
+    label = ['t_subskin','salinity','wind_speed','air_pressure','xCO2_atm','fco2','fco2_net_unc','fco2_para_unc','fco2_val_unc','fco2_tot_unc','ice','time','latitude','longitude']
+    if sst_unc:
+        vars.append(sst_unc)
+        label.append('sst_unc')
     inps = {}
 
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'r')
@@ -623,9 +646,10 @@ def fluxengine_file_generate(s_loc,track,sub_sst,sss,ws,press,xco2atm,fco2,time 
     c.close()
     del c
 
-def fluxengine_run(s_loc,track,config_file = 'fluxengine_config_night.conf',start_yr = 1990, end_yr = 2020,var_out = ['OF'],fluxengine_loc = 'fluxengine/flux/1990/01/OceanFluxGHG-month01-jan-1990-v0.nc',
-    add_text = '_in',fluxengine_input_file=False):
+def fluxengine_run(s_loc,track,config_file = 'fluxengine_config_night.conf',start_yr = 1990,end_yr = 2020,fluxengine_loc = 'D:/eddy/fluxengine/flux/1990/01/OceanFluxGHG-month01-jan-1990-v0.nc',
+    add_text = '_in',fluxengine_input_file=False,fluxengine_path=False):
     import os
+    from fluxengine_driver import flux_uncertainty_calc
 
     """
     Function to run fluxengine for a eddy.
@@ -635,25 +659,26 @@ def fluxengine_run(s_loc,track,config_file = 'fluxengine_config_night.conf',star
     del fe
     print(returnCode)
     if returnCode == 0:
-        c = Dataset(fluxengine_loc,'r')
+        flux_uncertainty_calc(fluxengine_path,start_yr=1990,sst_unc = 'sst_unc',unc_input_file=fluxengine_input_file,single_run=True)
+        c = Dataset(fluxengine_input_file,'r')
         d = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
 
-        for v in var_out:
-            outs = np.flip(np.array(c[v][0,:,0]))
-            if 'fluxengine_'+v+add_text in d.variables.keys():
-                d['fluxengine_'+v+add_text][:] = np.array(outs)
+        matching = [s for s in c.variables.keys() if "flux" in s]
+        for v in matching:
+            outs = np.array(c[v][0,:,0])
+            if v+add_text in d.variables.keys():
+                d[v+add_text][:] = np.array(outs)
             else:
-                m = d.createVariable('fluxengine_'+v+add_text,np.float32,('month_time'))
+                m = d.createVariable(v+add_text,np.float32,('month_time'))
                 m[:] = np.array(outs)
-            d['fluxengine_'+v+add_text].units = c[v].units
+            d[v+add_text].units = c[v].units
         c.close()
         d.close()
-        os.remove(fluxengine_input_file)
+        #os.remove(fluxengine_input_file)
     else:
         raise RuntimeError('Fluxengine Failed...')
 
-
-def eddy_co2_flux(s_loc,track,fluxn = 'fluxengine_OF',inout = '_in'):
+def eddy_co2_flux(s_loc,track,fluxn = 'flux',inout = '_in'):
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'r')
     area = np.array(c['month_effective_area'])
     time = np.array(c['month_time'])
@@ -670,6 +695,43 @@ def eddy_co2_flux(s_loc,track,fluxn = 'fluxengine_OF',inout = '_in'):
     inps = {}
     inps[fluxn+inout+'_areaday'] = flux
     inps[fluxn+inout+'_areaday_cumulative'] = cumflux
+
+    """
+    Now we deal with the uncertainties...
+    As we are dealing with eddies, the uncertainties have already been assumed spatially correlated
+    as within the code we are assuming the eddy is a single pixel within the calculation.
+    When summing we must assume the fixed component is temporally correlated and that the spatially variable
+    component is not temporally correlated.
+    We calculate each component seperately, and then assume they are independent and uncorrelated
+    """
+    flux_abs = np.abs(flux)
+    fixed_components = ['k','ph2o_fixed','schmidt_fixed','solskin_unc_fixed','solsubskin_unc_fixed']
+    variable_components = ['fco2sw','ph2o','schmidt','solskin_unc','solsubskin_unc','wind','xco2atm']
+    comb_unc = np.zeros((len(fixed_components)+len(variable_components),flux_abs.shape[0]))
+    t=0
+    c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'r')
+    for fixed in fixed_components:
+        t_unc = c['flux_unc_'+fixed+inout] * flux_abs
+        inps['flux_unc_'+fixed+inout+'_areaday_cumulative'] = np.cumsum(t_unc)
+        comb_unc[t,:] =  np.cumsum(t_unc)
+        t = t+1
+    for vari in variable_components:
+        t_unc = c['flux_unc_'+vari+inout] * flux_abs
+        it_unc = np.zeros((t_unc.shape))
+        for i in range(len(t_unc)):
+            it_unc[i] = np.sqrt(np.sum(t_unc[0:i+1]**2))
+        inps['flux_unc_'+vari+inout+'_areaday_cumulative'] = it_unc
+        comb_unc[t,:] =  it_unc
+        t = t+1
+    c.close()
+
+    """
+    Now we make a total flux uncertainty on the cumulative values... :-)
+    """
+    tot_unc = np.zeros((flux_abs.shape))
+    for i in range(flux_abs.shape[0]):
+        tot_unc[i] = np.sqrt(np.sum(comb_unc[:,i]**2))
+    inps['flux_unc_tot'+inout+'_areaday_cumulative'] = tot_unc
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
     for v in list(inps.keys()):
         if v in c.variables.keys():

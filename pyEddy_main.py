@@ -34,7 +34,7 @@ def AVISO_load(file,no_load):
     out['effective_contour_longitude'][f[:,0],f[:,1]] = out['effective_contour_longitude'][f[:,0],f[:,1]] - 360
     return out,desc
 
-def box_split(eddy,latb,lonb,dateb):
+def box_split(eddy,latb,lonb,dateb,strict_time=False):
     # Here we find any eddy that strays into our spatial box defined by latb,lonb and the time
     # window dateb.
     f = np.argwhere((eddy['time'] < date_convert(dateb[1])) & (eddy['time']>=date_convert(dateb[0])) &
@@ -48,6 +48,15 @@ def box_split(eddy,latb,lonb,dateb):
     # window to the full time length, then no need to call this function.
     f = np.argwhere(np.isin(eddy['track'],uni) == True)
     eddy = dict_split(eddy,f)
+    if strict_time:
+        l = []
+        uni = np.unique(eddy['track'])
+        for i in uni:
+            f = np.where(eddy['track'] == i)[0]
+            if (eddy['time'][f[0]] >= date_convert(dateb[0])) & (eddy['time'][f[-1]] < date_convert(dateb[1])):
+                l.append(i)
+        f = np.argwhere(np.isin(eddy['track'],l) == True)
+        eddy = dict_split(eddy,f)
     return eddy
 
 def dict_split(eddy,f):
@@ -71,5 +80,28 @@ def eddy_length_min(eddy,mindays,maxdays = 100000):
     uni,count = np.unique(eddy['track'],return_counts=True)
     f = np.argwhere((count < maxdays) & (count >= mindays))
     f = np.argwhere(np.isin(eddy['track'],uni[f]) == True)
+    eddy = dict_split(eddy,f)
+    return eddy
+
+def eddy_cross_lon_lat(eddy, lon, longitude = True,west= True):
+    """
+    Function to determine if an eddy travels across a line of longitude/latitude
+    """
+    if longitude:
+        var = 'longitude'
+    else:
+        var = 'latitude'
+    uni = np.unique(eddy['track'])
+    l = []
+    for i in uni:
+        f = np.where(eddy['track'] == i)[0]
+        if west:
+            if eddy[var][f[-1]] < lon:
+                l.append(i)
+        else:
+            if eddy[var][f[-1]] > lon:
+                l.append(i)
+
+    f = np.argwhere(np.isin(eddy['track'],l) == True)
     eddy = dict_split(eddy,f)
     return eddy
