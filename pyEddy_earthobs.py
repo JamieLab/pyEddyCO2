@@ -59,6 +59,13 @@ def radius_check(lonc,latc,lons,lats):
     # load_file() function of the eddy radius, and this is used to compute an additional
     # area to retirved from the file. Takes the mean of the x and y directions incases
     # where the eddy is more ellipse like then circular.
+    if np.all(np.sign(lonc) == np.sign(lons)):
+        print('All same')
+    else:
+        print('Over edge of grid!')
+        f = np.where(np.sign(lonc) != np.sign(lons))
+        lons[f] = lons[f] + (360 * np.sign(lonc))
+
     x = np.max(np.abs(lonc-lons))
     y = np.max(np.abs(latc-lats))
     return np.mean([x,y])
@@ -126,10 +133,17 @@ def inouteddy(data,inp):
     # Function to produce median, iqr, mean, std and number of values for data within the
     # eddy and outside the eddy seperately. This provides the statistics required for the daily
     # timeseries.
+    data = np.array(data)
+    inp = np.array(inp)
+    #print(data)
     ineddy = [np.nanmedian(data[inp==True]),np.subtract(*np.nanpercentile(data[inp==True], [75, 25])),
         np.nanmean(data[inp==True]),np.nanstd(data[inp==True]),len(data[inp==True]) - np.sum(np.isnan(data[inp==True])),len(data[inp==True])]
+
+
     outeddy =[np.nanmedian(data[inp==False]),np.subtract(*np.nanpercentile(data[inp==False], [75, 25])),
         np.nanmean(data[inp==False]),np.nanstd(data[inp==False]),len(data[inp==False]) - np.sum(np.isnan(data[inp==False])),len(data[inp==False])]
+
+
     #print(ineddy)
     return ineddy,outeddy
 
@@ -145,6 +159,18 @@ def inoutsplit(eddy,out,var,desc,units):
     return eddy,desc
 
 def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
+    """
+    Function to extract CCI-SST data for an eddy and the surrounding environment. This function
+    is check whether the eddy is on the grid edge (generally in the Pacific Ocean), and correctly
+    extracts the data whether the eddy is on the edge or not.
+    Inputs:
+
+    loc = location of the CCI-SST files
+    eddy = a extract dictionary of the eddy parameters (which includes time, latitude and longitude)
+    desc = a extract dictionary of variable descriptions
+    radm = radius to extract from the surrounding environment (in multiples of eddy radius)
+    plot = turn on and off debug plotting (0 = off)
+    """
     # Function to extract sstCCI data for the eddy and the surrounding environment.
     sstin = np.empty((len(eddy['time']),6))
     sstin[:] = np.nan
@@ -159,10 +185,12 @@ def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
         latc = eddy['latitude'][t]
         lons = eddy['effective_contour_longitude'][t,:]
         lats = eddy['effective_contour_latitude'][t,:]
+
         if (lats[0] != 0.0) & (lons[0] != 180.0):
             file = glob.glob(os.path.join(loc,date.strftime("%Y"),date.strftime("%m"),date.strftime("%Y%m%d*.nc")))
             # if radius_check(lonc,latc,lons,lats) > rad[1]:
             radmax = radius_check(lonc,latc,lons,lats)
+
             # else:
             #     radmax = rad[1]
             c = Dataset(file[0])
@@ -172,13 +200,15 @@ def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
                 print('First')
                 sst = np.squeeze(c.variables['analysed_sst'][0,:,:])
                 sst[sst.mask==True] = np.nan
+                sst[sst<0] = np.nan
                 sst_u = np.squeeze(c.variables['analysed_sst_uncertainty'][0,:,:])
                 sst_u[sst_u.mask==True] = np.nan
+                sst_u[sst_u < 0] = np.nan
                 lon2 = np.copy(lon)
                 #print(sst.shape)
                 #lon =c.variables['longitude'][:]; lat = c.variables['latitude'][:]
-                lon,sst = grid_switch(lon,sst)
-                lon2,sst_u = grid_switch(lon,sst_u)
+                lon,sst = grid_switch_expand(lon,sst,np.sign(lonc))
+                lon2,sst_u = grid_switch_expand(lon,sst_u,np.sign(lonc))
                 lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
                 sst=sst[np.ix_(f,g)]
                 sst_u=sst_u[np.ix_(f,g)]
@@ -186,7 +216,9 @@ def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
                 print('Second')
                 lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
                 sst = np.squeeze(c.variables['analysed_sst'][0,f,g])
+                sst[sst<0] = np.nan
                 sst_u = np.squeeze(c.variables['analysed_sst_uncertainty'][0,f,g])
+                sst_u[sst_u < 0] = np.nan
 
             c.close()
 
@@ -239,10 +271,11 @@ def add_cmems(loc,eddy,desc,var='so',units='psu',radm = 3,plot=0,log10=False,dep
                 else:
                     sst = np.squeeze(c.variables[var][day_val,:,:])
                 sst[sst.mask==True] = np.nan
+                sst[sst<0] = np.nan
                 if log10:
                     sst = np.log10(sst)
 
-                lon,sst = grid_switch(lon,sst)
+                lon,sst = grid_switch_expand(lon,sst,np.sign(lonc))
 
                 lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
                 sst=sst[np.ix_(f,g)]
@@ -253,6 +286,7 @@ def add_cmems(loc,eddy,desc,var='so',units='psu',radm = 3,plot=0,log10=False,dep
                     sst = np.squeeze(c.variables[var][day_val,0,f,g])
                 else:
                     sst = np.squeeze(c.variables[var][day_val,f,g])
+                sst[sst<0] = np.nan
                 if log10:
                     sst = np.log10(sst)
             c.close()
@@ -299,20 +333,22 @@ def add_wind(loc,eddy,desc,radm = 3,plot=0):
             if len(file) >0:
                 c = Dataset(file[0])
                 lon =c.variables['longitude'][:]; lat = c.variables['latitude'][:]
+                sst = np.squeeze(np.nanmean(c.variables['ws'][:,:,:],axis=2))
+                sst[sst<0] = np.nan
+                lon,sst = grid_switch(lon,sst) # Need it in -180 to 180 coordinates
                 #lat,lon,f,g,lon_len = load_file(c,'latitude','longitude',latc,lonc,radmax,radm)
 
                 # print(lon_len)
                 # print(len(g))
-                print(lon[0])
-                print(lonc - (radmax*radm))
-                print(lon[-1])
-                print(lonc + (radmax*radm))
+                print(lonc)
                 if (lonc - (radmax*radm) < lon[0]) or (lonc + (radmax*radm) > lon[-1]):
                     print('First')
-                    sst = np.squeeze(np.nanmean(c.variables['ws'][:,:,:],axis=2))
+
+
                     #print(sst.shape)
                     #lon =c.variables['longitude'][:]; lat = c.variables['latitude'][:]
-                    lon,sst = grid_switch(lon,sst)
+                    #lon,sst = grid_switch(lon,sst) # Need it in -180 to 180 coordinates
+                    lon,sst = grid_switch_expand(lon,sst,np.sign(lonc))
                     lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
                     # print(f)
                     # print(g)
@@ -320,7 +356,8 @@ def add_wind(loc,eddy,desc,radm = 3,plot=0):
                 else:
                     print('Second')
                     lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
-                    sst = np.squeeze(np.nanmean(c.variables['ws'][f,g,:],axis=2))
+                    sst=sst[np.ix_(f,g)]
+
                 #print(f)
                 #print(g)
                 c.close()
@@ -364,11 +401,30 @@ def grid_switch(lon,var):
         var_temp = np.empty((var.shape))
         var_temp[:,0:var_sh] = var[:,var_sh:]
         var_temp[:,var_sh:] = var[:,0:var_sh]
-    #lon_temp = np.empty((var_sh*2))
+
     lon = lon-180
-    # lon_temp[var_sh:] = lon[0:var_sh]
-    # lon_temp[0:var_sh] = lon[var_sh:]
+
     return lon,var_temp
+
+def grid_switch_expand(lon,var,sign):
+    var_sh = int(var.shape[0]/2)
+    if var.shape[0] == len(lon):
+        var_sh = int(var.shape[0]/2)
+        var_temp = np.empty((var.shape))
+        var_temp[0:var_sh,:] = var[var_sh:,:]
+        var_temp[var_sh:,:] = var[0:var_sh,:]
+    else:
+        var_sh = int(var.shape[1]/2)
+        var_temp = np.empty((var.shape))
+        var_temp[:,0:var_sh] = var[:,var_sh:]
+        var_temp[:,var_sh:] = var[:,0:var_sh]
+
+    if sign == -1:
+        lon = lon-180
+    else:
+        lon = lon+180
+    return lon,var_temp
+
 
 def produce_monthly(track,s_loc,vars=[],unc=False,unc_days = 3):
     if not unc:
@@ -407,7 +463,19 @@ def produce_monthly(track,s_loc,vars=[],unc=False,unc_days = 3):
             if unc:
                 data_o[i] = np.nanmean(data[time_m[i]]) / np.sqrt(len(time_m[i])/unc_days)
             else:
-                data_o[i] = np.nanmean(data[time_m[i]])
+                if v == 'longitude':
+                    temp = data[time_m[i]]
+                    if len(np.unique(np.sign(temp))) == 2:
+                        temp[temp < -176] = temp[temp < -176] + 360
+                        temp = np.nanmean(temp)
+                        if temp > 180:
+                            data_o[i] = temp - 360
+                        else:
+                            data_o[i] = temp
+                    else:
+                        data_o[i] = np.nanmean(data[time_m[i]])
+                else:
+                    data_o[i] = np.nanmean(data[time_m[i]])
 
         out[v] = data_o
     c.close()

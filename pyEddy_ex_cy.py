@@ -35,17 +35,17 @@ def analysis(eddy_v,desc,output_loc):
                 xco2atm = 'month_xco2',fco2 = 'month_fco2_sw_in',fco2_net = 'month_fco2_net_unc_in',fco2_para='month_fco2_para_unc_in',fco2_val = 'month_fco2_val_unc_in',fco2_tot = 'month_fco2_tot_unc_in',fluxengine_file = fluxengine_input_file
                 ,sst_unc = 'month_cci_sst_in_unc_mean')
 
-            Edeobs.fluxengine_run(output_loc,eddy_track,fluxengine_input_file = fluxengine_input_file,fluxengine_path=fluxengine_loc)
+            Edeobs.fluxengine_run(output_loc,eddy_track,fluxengine_input_file = fluxengine_input_file,fluxengine_path=fluxengine_loc,config_file='fluxengine_config_night_cy.conf')
 
             Edeobs.fluxengine_file_generate(output_loc,eddy_track,sub_sst = 'month_cci_sst_out_median',sss = 'month_cmems_so_out_median', ws = 'month_ccmp_wind_out_median',press = 'month_msl',
                 xco2atm = 'month_xco2',fco2 = 'month_fco2_sw_out',fco2_net = 'month_fco2_net_unc_out',fco2_para='month_fco2_para_unc_out',fco2_val = 'month_fco2_val_unc_out',fco2_tot = 'month_fco2_tot_unc_out',
                 fluxengine_file = fluxengine_input_file,sst_unc = 'month_cci_sst_out_unc_mean')
-            Edeobs.fluxengine_run(output_loc,eddy_track,add_text='_out',fluxengine_input_file = fluxengine_input_file,fluxengine_path=fluxengine_loc)
+            Edeobs.fluxengine_run(output_loc,eddy_track,add_text='_out',fluxengine_input_file = fluxengine_input_file,fluxengine_path=fluxengine_loc,config_file='fluxengine_config_night_cy.conf')
             Edeobs.eddy_co2_flux(output_loc,eddy_track)
             Edeobs.eddy_co2_flux(output_loc,eddy_track,inout='_out')
             #break
 
-fluxengine_loc = 'D:/eddy/fluxengine'
+fluxengine_loc = 'D:/eddy/fluxengine_c'
 fluxengine_input_file = fluxengine_loc+'/output.nc'
 # To save speed and memory these are the variables in the netcdf we don't want to load. This can be modified,
 # depending on what is required
@@ -53,11 +53,11 @@ no_load = ['cost_association','speed_contour_height','speed_contour_latitude','s
     'speed_average','speed_area','inner_contour_height','latitude_max','longitude_max','num_point_s','uavg_profile']
 
 """
-Running the anticyclonic eddies...
+Running the Cyclonic eddies...
 """
 # File where our eddy data is located
-file = 'D:/Data/AVISO_EDDIES/META3.2_DT_allsat_Anticyclonic_long_19930101_20220209.nc'
-output_loc = 'D:/eddy/anticyclonic'
+file = 'D:/Data/AVISO_EDDIES/META3.2_DT_allsat_Cyclonic_long_19930101_20220209.nc'
+output_loc = 'D:/eddy/cyclonic'
 #file = 'D:/Data/AVISO_EDDIES/META3.2_DT_allsat_Cyclonic_long_19930101_20220209.nc'
 # Loading the eddy netcdf data into a dictionary that corresponds to the netcdf file variable names.
 # This will not load anything that is defined in "no_load". If you want to load all variables leave

@@ -15,8 +15,8 @@ def base_tracks_end(ax,m):
     m.drawmapboundary(fill_color='#99ffff')
     m.fillcontinents(color='#C2c3c3')
     m.drawcoastlines()
-    parallels = np.arange(-50.,51,25.)
-    meridion = [-50,-25,0]
+    parallels = np.arange(-90.,91,45.)
+    meridion = np.arange(-180,181,60.)
     m.drawparallels(parallels,labels=[True,False,False,False])
     m.drawmeridians(meridion,labels=[False,False,False,True])
 
