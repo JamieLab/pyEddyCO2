@@ -72,7 +72,7 @@ def date_convert(dates,d = datetime.datetime(1950,1,1,0,0,0)):
     return out
 
 def date_con(dates,d = datetime.datetime(1950,1,1,0,0,0)):
-    out= d + datetime.timedelta(days=dates)
+    out= d + datetime.timedelta(days=int(dates))
     return out
 
 def eddy_length_min(eddy,mindays,maxdays = 100000):

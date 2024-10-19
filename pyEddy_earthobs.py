@@ -17,10 +17,11 @@ Paths to the OceanICU framework...
 sys.path.append('C:\\Users\\df391\\OneDrive - University of Exeter\\Post_Doc_ESA_Contract\\OceanICU')
 sys.path.append('C:\\Users\\df391\\OneDrive - University of Exeter\\Post_Doc_ESA_Contract\\OceanICU\Data_Loading')
 
-def timeseries_start(eddy, track_no):
+def timeseries_start(eddy,desc,s_loc,track_no):
     f = np.squeeze(np.argwhere(eddy['track'] == track_no))
     eddy = pyEddy_m.dict_split(eddy,f)
-    return eddy
+    timeseries_save(eddy,desc,s_loc,track_no)
+    #return eddy
 
 def timeseries_save(eddy,desc,s_loc,track):
     out = Dataset(os.path.join(s_loc,str(track) +'.nc'),mode='w',format='NETCDF4_CLASSIC')
@@ -137,28 +138,39 @@ def inouteddy(data,inp):
     inp = np.array(inp)
     #print(data)
     ineddy = [np.nanmedian(data[inp==True]),np.subtract(*np.nanpercentile(data[inp==True], [75, 25])),
-        np.nanmean(data[inp==True]),np.nanstd(data[inp==True]),len(data[inp==True]) - np.sum(np.isnan(data[inp==True])),len(data[inp==True])]
+        np.nanmean(data[inp==True]),np.nanstd(data[inp==True]),len(data[inp==True]) - np.sum(np.isnan(data[inp==True])==1),len(data[inp==True])]
 
 
     outeddy =[np.nanmedian(data[inp==False]),np.subtract(*np.nanpercentile(data[inp==False], [75, 25])),
-        np.nanmean(data[inp==False]),np.nanstd(data[inp==False]),len(data[inp==False]) - np.sum(np.isnan(data[inp==False])),len(data[inp==False])]
+        np.nanmean(data[inp==False]),np.nanstd(data[inp==False]),len(data[inp==False]) - np.sum(np.isnan(data[inp==False])==1),len(data[inp==False])]
 
 
     #print(ineddy)
     return ineddy,outeddy
 
-def inoutsplit(eddy,out,var,desc,units):
+def inoutsplit(c,out,var,units,loc,name = '',extras=False):
     vals = ['_median','_iqr','_mean','_std','_valid_n','_total_n']
+    keys = c.variables.keys()
     for i in range(0,len(vals)):
-        eddy[var+vals[i]] = out[:,i]
-        desc[var+vals[i]] = {}
-        if (i == 5) or (i ==4):
-            desc[var+vals[i]]['units'] = ''
+        if var+vals[i] in keys:
+            c[var+vals[i]][:] = out[:,i]
         else:
-            desc[var+vals[i]]['units'] = units
-    return eddy,desc
+            var_o = c.createVariable(var+vals[i],'f4','d_time')
+            var_o[:] = out[:,i]
 
-def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
+        if (i == 5) or (i ==4):
+            c[var+vals[i]].units  = ''
+        else:
+            c[var+vals[i]].units = units
+        c[var+vals[i]].data_location = loc
+        c[var+vals[i]].last_modified = datetime.datetime.now().strftime(('%d/%m/%Y %H:%M'))
+        c[var+vals[i]].long_name = name + vals[i][1:]
+        if extras:
+            for j in extras:
+                c[var+vals[i]].UnusedNameAttribute = j[1]
+                c[var+vals[i]].renameAttribute("UnusedNameAttribute", j[0])
+
+def add_sstCCI(loc,radm = 3,plot=0,output_loc='',track = 0,bias = 0,v3=True):
     """
     Function to extract CCI-SST data for an eddy and the surrounding environment. This function
     is check whether the eddy is on the grid edge (generally in the Pacific Ocean), and correctly
@@ -171,6 +183,16 @@ def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
     radm = radius to extract from the surrounding environment (in multiples of eddy radius)
     plot = turn on and off debug plotting (0 = off)
     """
+    extras = [['bias','Bias applied = ' +str(bias) +' Kelvin']]
+    #Here we load the eddy data we need from the netcdf.
+    c = Dataset(os.path.join(output_loc,str(track) +'.nc'),'r')
+    eddy = {}
+    eddy['longitude'] = np.array(c['longitude'])
+    eddy['latitude'] = np.array(c['latitude'])
+    eddy['time'] = np.array(c['time'])
+    eddy['effective_contour_longitude'] = np.array(c['effective_contour_longitude'])
+    eddy['effective_contour_latitude'] = np.array(c['effective_contour_latitude'])
+    c.close()
     # Function to extract sstCCI data for the eddy and the surrounding environment.
     sstin = np.empty((len(eddy['time']),6))
     sstin[:] = np.nan
@@ -180,14 +202,17 @@ def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
 
     for t in range(0,len(eddy['time'])):
         print(t)
-        date = pyEddy_m.date_con(eddy['time'][t])
+        date = pyEddy_m.date_con(int(eddy['time'][t]))
         lonc = eddy['longitude'][t]
         latc = eddy['latitude'][t]
         lons = eddy['effective_contour_longitude'][t,:]
         lats = eddy['effective_contour_latitude'][t,:]
 
         if (lats[0] != 0.0) & (lons[0] != 180.0):
-            file = glob.glob(os.path.join(loc,date.strftime("%Y"),date.strftime("%m"),date.strftime("%Y%m%d*.nc")))
+            if v3:
+                file = glob.glob(os.path.join(loc,date.strftime("%Y"),date.strftime("%m"),date.strftime("%d"),date.strftime("%Y%m%d*.nc")))
+            else:
+                file = glob.glob(os.path.join(loc,date.strftime("%Y"),date.strftime("%m"),date.strftime("%Y%m%d*.nc")))
             # if radius_check(lonc,latc,lons,lats) > rad[1]:
             radmax = radius_check(lonc,latc,lons,lats)
 
@@ -198,7 +223,7 @@ def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
             #lat,lon,f,g = load_file(c,'lat','lon',latc,lonc,radmax,radm)
             if (lonc - (radmax*radm) < lon[0]) or (lonc + (radmax*radm) > lon[-1]):
                 print('First')
-                sst = np.squeeze(c.variables['analysed_sst'][0,:,:])
+                sst = np.squeeze(c.variables['analysed_sst'][0,:,:])+bias
                 sst[sst.mask==True] = np.nan
                 sst[sst<0] = np.nan
                 sst_u = np.squeeze(c.variables['analysed_sst_uncertainty'][0,:,:])
@@ -215,9 +240,9 @@ def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
             else:
                 print('Second')
                 lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
-                sst = np.squeeze(c.variables['analysed_sst'][0,f,g])
+                sst = np.squeeze(c.variables['analysed_sst'][0,f,g])+bias
                 sst[sst<0] = np.nan
-                sst_u = np.squeeze(c.variables['analysed_sst_uncertainty'][0,f,g])
+                sst_u = np.squeeze(c.variables['analysed_sst_uncertainty'][0,f,g])*2
                 sst_u[sst_u < 0] = np.nan
 
             c.close()
@@ -234,14 +259,136 @@ def add_sstCCI(loc,eddy,desc,radm = 3,plot=0):
             inp = pointsineddy(lon,lat,lons,lats)
             sstin[t,:],sstout[t,:] = inouteddy(sst,inp)
             sstin_unc[t,:],sstout_unc[t,:] = inouteddy(sst_u,inp)
-    eddy,desc = inoutsplit(eddy,sstin,'cci_sst_in',desc,'kelvin')
-    eddy,desc = inoutsplit(eddy,sstin_unc,'cci_sst_in_unc',desc,'kelvin')
-    eddy,desc = inoutsplit(eddy,sstout,'cci_sst_out',desc,'kelvin')
-    eddy,desc = inoutsplit(eddy,sstout_unc,'cci_sst_out_unc',desc,'kelvin')
-    return eddy,desc
 
-def add_cmems(loc,eddy,desc,var='so',units='psu',radm = 3,plot=0,log10=False,depth=True):
+    c = Dataset(os.path.join(output_loc,str(track) +'.nc'),'a')
+    inoutsplit(c,sstin,'cci_sst_in','kelvin',loc,name = 'CCI-SST analysed SST in ',extras = extras)
+    inoutsplit(c,sstin_unc,'cci_sst_in_unc','kelvin',loc,name = 'CCI-SST analysed SST uncertainty in ')
+    inoutsplit(c,sstout,'cci_sst_out','kelvin',loc,name = 'CCI-SST analysed SST out ',extras = extras)
+    inoutsplit(c,sstout_unc,'cci_sst_out_unc','kelvin',loc,name = 'CCI-SST analysed SST uncertainty out ')
+
+    c.close()
+
+def add_OCCCI(loc,radm = 3,plot=1,output_loc='',track = 0,bias = 0,name='OC-CCI chlorophyll-a'):
+    """
+    Function to extract CCI-OC data for an eddy and the surrounding environment. This function
+    is check whether the eddy is on the grid edge (generally in the Pacific Ocean), and correctly
+    extracts the data whether the eddy is on the edge or not.
+    Inputs:
+
+    loc = location of the CCI-OC files
+    eddy = a extract dictionary of the eddy parameters (which includes time, latitude and longitude)
+    desc = a extract dictionary of variable descriptions
+    radm = radius to extract from the surrounding environment (in multiples of eddy radius)
+    plot = turn on and off debug plotting (0 = off)
+    """
+    #Here we load the eddy data we need from the netcdf.
+    c = Dataset(os.path.join(output_loc,str(track) +'.nc'),'r')
+    keys = c.variables.keys()
+    if 'cci_oc_chla_in_median' in keys:
+        print('Already got chla...')
+        c.close()
+    else:
+        eddy = {}
+        eddy['longitude'] = np.array(c['longitude'])
+        eddy['latitude'] = np.array(c['latitude'])
+        eddy['time'] = np.array(c['time'])
+        eddy['effective_contour_longitude'] = np.array(c['effective_contour_longitude'])
+        eddy['effective_contour_latitude'] = np.array(c['effective_contour_latitude'])
+        c.close()
+        # Function to extract sstCCI data for the eddy and the surrounding environment.
+        sstin = np.empty((len(eddy['time']),6))
+        sstin[:] = np.nan
+        sstout = np.copy(sstin)
+        sstin_unc = np.copy(sstin)
+        sstout_unc = np.copy(sstin)
+
+        for t in range(0,len(eddy['time'])):
+            print(t)
+            date = pyEddy_m.date_con(int(eddy['time'][t]))
+            lonc = eddy['longitude'][t]
+            latc = eddy['latitude'][t]
+            lons = eddy['effective_contour_longitude'][t,:]
+            lats = eddy['effective_contour_latitude'][t,:]
+
+            if (lats[0] != 0.0) & (lons[0] != 180.0):
+                file = glob.glob(os.path.join(loc,date.strftime("%Y"),date.strftime("*%Y%m%d-fv6.0.nc")))
+                if len(file) == 0:
+                    print('No file')
+                else:
+                    # if radius_check(lonc,latc,lons,lats) > rad[1]:
+                    radmax = radius_check(lonc,latc,lons,lats)
+
+                    # else:
+                    #     radmax = rad[1]
+                    c = Dataset(file[0])
+                    lon =c.variables['lon'][:]; lat = c.variables['lat'][:]
+                    #lat,lon,f,g = load_file(c,'lat','lon',latc,lonc,radmax,radm)
+                    if (lonc - (radmax*radm) < lon[0]) or (lonc + (radmax*radm) > lon[-1]):
+                        print('First')
+                        sst = np.squeeze(c.variables['chlor_a'][0,:,:])+bias
+                        sst.data[sst.mask==True] = np.nan
+                        sst=np.log10(sst.data)
+
+                        sst[sst<-6] = np.nan;sst[sst>4] = np.nan
+                        sst_u = np.squeeze(c.variables['chlor_a_log10_rmsd'][0,:,:])
+                        sst_u.data[sst_u.mask==True] = np.nan
+                        sst_u=sst_u.data
+                        #sst_u[sst_u.mask==True] = np.nan
+                        sst_u[sst_u < 0] = np.nan;sst_u[sst_u > 5] = np.nan;
+                        lon2 = np.copy(lon)
+                        #print(sst.shape)
+                        #lon =c.variables['longitude'][:]; lat = c.variables['latitude'][:]
+                        lon,sst = grid_switch_expand(lon,sst,np.sign(lonc))
+                        lon2,sst_u = grid_switch_expand(lon,sst_u,np.sign(lonc))
+                        lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
+                        sst=sst[np.ix_(f,g)]
+                        sst_u=sst_u[np.ix_(f,g)]
+                    else:
+                        print('Second')
+                        lat,lon,f,g = find_f_g(lat,lon,latc,lonc,radmax,radm)
+                        sst = np.squeeze(c.variables['chlor_a'][0,f,g])+bias
+                        sst.data[sst.mask==True] = np.nan
+                        sst = sst.data
+                        sst[sst>1000] = np.nan
+                        sst = np.log10(sst)
+                        sst[sst<-6] = np.nan; sst[sst>4] = np.nan
+                        sst_u = np.squeeze(c.variables['chlor_a_log10_rmsd'][0,f,g])
+                        sst_u.data[sst_u.mask==True] = np.nan
+                        sst_u=sst_u.data
+                        sst_u[sst_u < 0] = np.nan;sst_u[sst_u > 5] = np.nan;
+
+                    c.close()
+
+                    if plot == 1:
+                        f,ax1 = plt.subplots()
+                        m = ax1.pcolor(lon,lat,sst)
+                        plt.colorbar(m)
+                        ax1.plot(lons,lats,'b--')
+                        # cix,ciy = ellipse(lonc,latc,rad[0],rad[1])
+                        # ax1.plot(cix,ciy,'r--')
+                        plt.show()
+                    #lons,lats = ellipse(lonc,latc,rad[0],rad[1])
+                    inp = pointsineddy(lon,lat,lons,lats)
+                    sstin[t,:],sstout[t,:] = inouteddy(sst,inp)
+                    sstin_unc[t,:],sstout_unc[t,:] = inouteddy(sst_u,inp)
+
+        c = Dataset(os.path.join(output_loc,str(track) +'.nc'),'a')
+        inoutsplit(c,sstin,'cci_oc_chla_in','log10(mgm-3)',loc,name=name+' in ')
+        inoutsplit(c,sstin_unc,'cci_oc_chla_in_unc','log10(mgm-3)',loc,name=name+' uncertainty in ')
+        inoutsplit(c,sstout,'cci_oc_chla_out','log10(mgm-3)',loc,name=name+' out ')
+        inoutsplit(c,sstout_unc,'cci_oc_chla_out_unc','log10(mgm-3)',loc,name=name+' uncertainty out ')
+        c.close()
+
+def add_cmems(loc,track=0,output_loc='',var='so',units='psu',radm = 3,plot=0,log10=False,depth=True,name='CMEMS Salinity '):
     # Function to extract sstCCI data for the eddy and the surrounding environment.
+    c = Dataset(os.path.join(output_loc,str(track) +'.nc'),'r')
+    eddy = {}
+    eddy['longitude'] = np.array(c['longitude'])
+    eddy['latitude'] = np.array(c['latitude'])
+    eddy['time'] = np.array(c['time'])
+    eddy['effective_contour_longitude'] = np.array(c['effective_contour_longitude'])
+    eddy['effective_contour_latitude'] = np.array(c['effective_contour_latitude'])
+    c.close()
     sstin = np.empty((len(eddy['time']),6))
     sstin[:] = np.nan
     sstout = np.empty((len(eddy['time']),6))
@@ -302,17 +449,27 @@ def add_cmems(loc,eddy,desc,var='so',units='psu',radm = 3,plot=0,log10=False,dep
             #lons,lats = ellipse(lonc,latc,rad[0],rad[1])
             inp = pointsineddy(lon,lat,lons,lats)
             sstin[t,:],sstout[t,:] = inouteddy(sst,inp)
-    eddy,desc = inoutsplit(eddy,sstin,f'cmems_{var}_in',desc,units)
-    eddy,desc = inoutsplit(eddy,sstout,f'cmems_{var}_out',desc,units)
-    return eddy,desc
+    c = Dataset(os.path.join(output_loc,str(track) +'.nc'),'a')
+    inoutsplit(c,sstin,f'cmems_{var}_in',units,loc,name = name+ ' in ')
+    inoutsplit(c,sstout,f'cmems_{var}_out',units,loc,name = name+' out ')
+    c.close()
 
+def add_wind(loc,radm = 3,plot=0,track=0,output_loc='',name = 'CCMP wind speed '):
+    c = Dataset(os.path.join(output_loc,str(track) +'.nc'),'r')
+    eddy = {}
+    eddy['longitude'] = np.array(c['longitude'])
+    eddy['latitude'] = np.array(c['latitude'])
+    eddy['time'] = np.array(c['time'])
+    eddy['effective_contour_longitude'] = np.array(c['effective_contour_longitude'])
+    eddy['effective_contour_latitude'] = np.array(c['effective_contour_latitude'])
+    c.close()
 
-def add_wind(loc,eddy,desc,radm = 3,plot=0):
-    #
     sstin = np.empty((len(eddy['time']),6))
     sstin[:] = np.nan
     sstout = np.empty((len(eddy['time']),6))
     sstout[:] = np.nan
+    sst2in = np.copy(sstout)
+    sst2out = np.copy(sstout)
     for t in range(0,len(eddy['time'])):
         print(t)
         date = pyEddy_m.date_con(eddy['time'][t])
@@ -379,9 +536,13 @@ def add_wind(loc,eddy,desc,radm = 3,plot=0):
 
                 inp = pointsineddy(lon,lat,lons,lats)
                 sstin[t,:],sstout[t,:] = inouteddy(sst,inp)
-    eddy,desc = inoutsplit(eddy,sstin,'ccmp_wind_in',desc,'ms-1')
-    eddy,desc = inoutsplit(eddy,sstout,'ccmp_wind_out',desc,'ms-1')
-    return eddy,desc
+                sst2in[t,:],sst2out[t,:] = inouteddy(sst**2,inp)
+    c = Dataset(os.path.join(output_loc,str(track) +'.nc'),'a')
+    inoutsplit(c,sstin,'ccmp_wind_in','ms^-1',loc,name = name+ 'in ')
+    inoutsplit(c,sstout,'ccmp_wind_out','ms^-1',loc,name = name + 'out ')
+    inoutsplit(c,sst2in,'ccmp_wind^2_in','(ms^-1)^2',loc,name = name+ 'second moment in ')
+    inoutsplit(c,sst2out,'ccmp_wind^2_out','(ms^-1)^2',loc,name = name+ 'second moment out ')
+    c.close()
 
 def grid_switch(lon,var):
     """
@@ -491,12 +652,15 @@ def produce_monthly(track,s_loc,vars=[],unc=False,unc_days = 3):
         m = c.createVariable('month_time',np.float32,('month_time'))
         m[:] = np.array(out_time)
     c['month_time'].units = "days since 1950-01-01 00:00:00"
+    c['month_time'].long_name = 'Time of monthly averages'
     for v in vars:
         if 'month_'+v in c.variables.keys():
             c['month_'+v][:] = out[v]
         else:
             m = c.createVariable('month_'+v,np.float32,('month_time'))
             m[:] = out[v]
+        c['month_'+v].long_name = 'Monthly '+ c[v].long_name
+        c['month_'+v].units = c[v].units
     c.close()
 
 def add_noaa(loc,s_loc,track):
@@ -513,9 +677,9 @@ def add_noaa(loc,s_loc,track):
         latg = np.abs(np.array(c['latitude']) - lat[i])
         long = np.abs(np.array(c['longitude']) - lon[i])
 
-        f = np.where(latg == np.min(latg))[0]
+        f = np.where(latg == np.min(latg))[0][0]
         #print(f)
-        g = np.where(long == np.min(long))[0]
+        g = np.where(long == np.min(long))[0][0]
         #print(g)
         xco2[i] = np.array(c.variables['xCO2'][g,f])
         c.close()
@@ -527,6 +691,8 @@ def add_noaa(loc,s_loc,track):
         m = c.createVariable('month_xco2',np.float32,('month_time'))
         m[:] = np.array(xco2)
     c['month_xco2'].units = 'uatm'
+    c['month_xco2'].data_location = loc
+    c['month_xco2'].long_name = 'Monthly NOAA-ERSL xCO2(atm)'
     c.close()
 
 def add_era5(loc,s_loc,track,var = 'msl'):
@@ -544,9 +710,9 @@ def add_era5(loc,s_loc,track,var = 'msl'):
         latg = np.abs(np.array(c['latitude']) - lat[i])
         long = np.abs(np.array(c['longitude']) - lon[i])
 
-        f = np.where(latg == np.min(latg))[0]
+        f = np.where(latg == np.min(latg))[0][0]
         #print(f)
-        g = np.where(long == np.min(long))[0]
+        g = np.where(long == np.min(long))[0][0]
         #print(g)
         xco2[i] = np.array(c.variables[var][0,f,g])
         units = c.variables[var].units
@@ -563,10 +729,10 @@ def add_era5(loc,s_loc,track,var = 'msl'):
         m = c.createVariable('month_'+var,np.float32,('month_time'))
         m[:] = np.array(xco2)
     c['month_'+var].units = units
-    c['month_'+var].long_name = 'ERA5 ' + long
+    c['month_'+var].long_name = 'Monthly ERA5 ' + long
     c.close()
 
-def add_province(file,s_loc,track,prov_var = False,d2=datetime.datetime(1970,1,15,0,0,0)):
+def add_province(file,s_loc,track,prov_var = False,d2=datetime.datetime(1970,1,15,0,0,0),add_text='physics'):
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
     time = np.array(c['month_time'])
     lat = np.array(c['month_latitude'])
@@ -592,25 +758,83 @@ def add_province(file,s_loc,track,prov_var = False,d2=datetime.datetime(1970,1,1
         lonv = np.abs(long - lon[i])
         timev = np.abs(timeg - time[i])
 
-        f = np.where(latv == np.min(latv))[0]
+        f = np.where(latv == np.min(latv))[0][0]
         print(f)
-        g = np.where(lonv == np.min(lonv))[0]
-        w = np.where(timev == np.min(timev))[0]
+        g = np.where(lonv == np.min(lonv))[0][0]
+        w = np.where(timev == np.min(timev))[0][0]
         print(g)
         print(w)
         print(time[i])
         prov[i] = prov_data[g,f,w]
 
     #c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
-    if 'month_province' in c.variables.keys():
-        c['month_province'][:] = np.array(prov)
+    if 'month_province_'+add_text in c.variables.keys():
+        c['month_province_'+add_text][:] = np.array(prov)
     else:
-        m = c.createVariable('month_province',np.float32,('month_time'))
+        m = c.createVariable('month_province_'+add_text,np.float32,('month_time'))
         m[:] = np.array(prov)
     #c['month_province'].units = 'uatm'
-    c['month_province'].file = 'Data from ' + file
-    c['month_province'].long_name = 'fCO2(sw) interpolation province'
+    c['month_province_'+add_text].file = 'Data from ' + file
+    c['month_province_'+add_text].long_name = 'fCO2(sw) interpolation province'
     c.close()
+
+def calc_anomaly_wrt_fco2net(file,output_loc,s_loc_list,eddy_var,clim_var,d2=datetime.datetime(1970,1,15,0,0,0),plot=False):
+    #from construct_input_netcdf import construct_climatology
+
+    #Load the full timeseries values from the OceanICU neural network framework from the input parameter netcdf file and store in a dictionary
+    full_time = {}
+    c = Dataset(file,'r')
+    clim_lat = np.array(c['latitude'])
+    clim_lon = np.array(c['longitude'])
+    clim_time = np.array(c['time'])
+    for i in range(len(clim_time)):
+        t = pyEddy_m.date_con(int(clim_time[i]), d = d2)
+        clim_time[i] = t.month
+    #print(clim_time)
+
+    # for i in clim_var:
+    #     full_time[i] = np.array(c[i])
+
+    clim_val = {}
+    for i in clim_var:
+        clim_val[i] = np.array(c[i+'_clim'])
+    c.close()
+
+    for track in s_loc_list:
+        c = Dataset(os.path.join(output_loc,str(track) +'.nc'),'a')
+        time = np.array(c['month_time'])
+        for i in range(len(time)):
+            t = pyEddy_m.date_con(int(time[i]), d = datetime.datetime(1950,1,1,0,0,0))
+            time[i] = t.month
+        #print(time)
+        lat = np.array(c['month_latitude'])
+        lon = np.array(c['month_longitude'])
+        if plot:
+            plt.figure()
+        for i in range(len(eddy_var)):
+            var = np.squeeze(np.array([c[eddy_var[i]]]))
+            anom = np.zeros((len(var))); anom[:] = np.nan
+            for j in range(len(var)):
+                latv = np.abs(clim_lat - lat[j])
+                lonv = np.abs(clim_lon - lon[j])
+                f = np.where(latv == np.min(latv))[0][0]
+                g = np.where(lonv == np.min(lonv))[0][0]
+
+                anom[j] = var[j] - clim_val[clim_var[i]][g,f,int(time[j]-1)]
+            if eddy_var[i]+'_anom' in c.variables.keys():
+                c[eddy_var[i]+'_anom'][:] = anom
+            else:
+                m = c.createVariable(eddy_var[i]+'_anom',np.float32,('month_time'))
+                m[:] = anom
+            c[eddy_var[i]+'_anom'].long_name = c[eddy_var[i]].long_name + ' Anomaly with respect to nerual network climatology'
+            c[eddy_var[i]+'_anom'].data_location = file
+            c[eddy_var[i]+'_anom'].comment = 'Anomaly calculated with respect to the climatology used in the fCO2(sw) nerual network training'
+            if plot:
+                plt.plot(anom,label = eddy_var[i])
+        c.close()
+        if plot:
+            plt.legend()
+            plt.show()
 
 def calc_fco2(net_loc,s_loc,track,province_var = False,input_var = [],add_text='_in',ens=10,oceanicu_frame = 'C:/Users/df391/OneDrive - University of Exeter/Post_Doc_ESA_Contract/OceanICU'):
     from sklearn.preprocessing import StandardScaler
@@ -660,14 +884,17 @@ def calc_fco2(net_loc,s_loc,track,province_var = False,input_var = [],add_text='
         lut = lut[0]
         fco2_para[f] = np.squeeze(nnt.lut_retr(lut,mod_inp))
         g = np.where(val[:,0] == v)
-        fco2_val[f] = val[g,1]
+        fco2_val[f] = val[g,1]*2 #for 95% confidence
         outs = {}
         outs['month_fco2_sw'+add_text] = fco2
         outs['month_fco2_net_unc'+add_text] = fco2_net
         outs['month_fco2_para_unc'+add_text] = fco2_para
         outs['month_fco2_val_unc'+add_text] = fco2_val
         outs['month_fco2_tot_unc' + add_text] = np.sqrt(fco2_net**2 + fco2_para**2 + fco2_val**2)
+        long_names = ['Fugacity of CO2 in seawater','Fugacity of CO2 in seawater network uncertainty','Fugacity of CO2 in seawater parameter uncertainty',
+        'Fugacity of CO2 in seawater evaluation uncertainty','Fugatcity of CO2 in seawater total uncertainty']
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
+    i = 0
     for v in list(outs.keys()):
         if v in c.variables.keys():
             c[v][:] = np.array(outs[v])
@@ -675,13 +902,19 @@ def calc_fco2(net_loc,s_loc,track,province_var = False,input_var = [],add_text='
             m = c.createVariable(v,np.float32,('month_time'))
             m[:] = np.array(outs[v])
         c[v].units = 'uatm'
+        c[v].data_location = net_loc
+        c[v].comment = 'fCO2(sw) and uncertainties estimated from the nerual network in data_location'
+        c[v].long_name = long_names[i]
+        if 'unc' in v:
+            c[v].uncertainty = 'Uncertainties are calculated at the 95% confidence / 2 sigma'
+        i = i+1
     c.close()
 
-def fluxengine_file_generate(s_loc,track,sub_sst,sss,ws,press,xco2atm,fco2,fco2_net,fco2_para,fco2_val,fco2_tot,ice='ice',time = 'month_time',lat='month_latitude',lon='month_longitude',fluxengine_file = 'fluxengine/output.nc', sst_unc = False):
+def fluxengine_file_generate(s_loc,track,sub_sst,sss,ws,ws2,press,xco2atm,fco2,fco2_net,fco2_para,fco2_val,fco2_tot,ice='ice',time = 'month_time',lat='month_latitude',lon='month_longitude',fluxengine_file = 'fluxengine/output.nc', sst_unc = False):
     # import time as tm
     # tm.sleep(15)
-    vars = [sub_sst,sss,ws,press,xco2atm,fco2,fco2_net,fco2_para,fco2_val,fco2_tot,ice,time,lat,lon]
-    label = ['t_subskin','salinity','wind_speed','air_pressure','xCO2_atm','fco2','fco2_net_unc','fco2_para_unc','fco2_val_unc','fco2_tot_unc','ice','time','latitude','longitude']
+    vars = [sub_sst,sss,ws,ws2,press,xco2atm,fco2,fco2_net,fco2_para,fco2_val,fco2_tot,ice,time,lat,lon]
+    label = ['t_subskin','salinity','wind_speed','wind_speed_2','air_pressure','xCO2_atm','fco2','fco2_net_unc','fco2_para_unc','fco2_val_unc','fco2_tot_unc','ice','time','latitude','longitude']
     if sst_unc:
         vars.append(sst_unc)
         label.append('sst_unc')
@@ -691,26 +924,30 @@ def fluxengine_file_generate(s_loc,track,sub_sst,sss,ws,press,xco2atm,fco2,fco2_
     for i in range(len(vars)):
         inps[label[i]] = np.array(c[vars[i]])
     c.close()
-    inps['wind_speed_2'] = inps['wind_speed']**2
+    #inps['wind_speed_2'] = inps['wind_speed']**2
 
     c = Dataset(fluxengine_file,'w')
     time_dim = c.createDimension('time', 1)
     lat_dim = c.createDimension('latitude',len(inps['time']))
-    lon_dim = c.createDimension('longitude',len(inps['time']))
+    lon_dim = c.createDimension('longitude',2)
 
     for v in list(inps.keys()):
         print(v)
         if (v == 'latitude') | (v == 'longitude') | (v == 'time'):
             m = c.createVariable(v,np.float32,(v))
-            if (v == 'time') | (v == 'longitude'):
+            if  (v == 'latitude'):
+                m[:] = np.array(range(0,len(inps['time'])))
+            elif (v == 'time'):
                 m[:] = np.array(1)
+            elif (v == 'longitude'):
+                m[:] = np.array(range(0,2))
             else:
                 m[:] = np.array(inps[v])
         else:
-            m = c.createVariable(v,np.float32,('latitude','longitude','time'))
+            m = c.createVariable(v,np.float32,('longitude','latitude','time'))
             i = inps[v][:]
-            i2 = np.repeat(i[:, np.newaxis], len(inps['time']), axis=1)
-            m[:] = np.array(i2)
+            i2 = np.transpose(np.repeat(i[:, np.newaxis], 2, axis=1))
+            m[:] = np.array(i2[:,:,np.newaxis])
     c.close()
     del c
 
@@ -723,7 +960,7 @@ def fluxengine_run(s_loc,track,config_file = 'fluxengine_config_night.conf',star
     Function to run fluxengine for a eddy.
     """
     from fluxengine.core import fe_setup_tools as fluxengine
-    returnCode,fe = fluxengine.run_fluxengine(config_file, start_yr, end_yr, singleRun=True,verbose=True)
+    returnCode,fe = fluxengine.run_fluxengine(config_file, start_yr, end_yr, singleRun=True,verbose=True)#,outputDirOverride=fluxengine_path)
     del fe
     print(returnCode)
     if returnCode == 0:
@@ -733,13 +970,20 @@ def fluxengine_run(s_loc,track,config_file = 'fluxengine_config_night.conf',star
 
         matching = [s for s in c.variables.keys() if "flux" in s]
         for v in matching:
-            outs = np.array(c[v][0,:,0])
+            outs = np.array(c[v][-1,:,0])
             if v+add_text in d.variables.keys():
                 d[v+add_text][:] = np.array(outs)
             else:
                 m = d.createVariable(v+add_text,np.float32,('month_time'))
                 m[:] = np.array(outs)
             d[v+add_text].units = c[v].units
+            d[v+add_text].long_name = c[v].long_name
+            d[v+add_text].comment = c[v].comment
+            d[v+add_text].date_generated = c[v].date_generated
+            try:
+                d[v+add_text].uncertainties = c[v].uncertainties
+            except:
+                print()
         c.close()
         d.close()
         #os.remove(fluxengine_input_file)
@@ -760,9 +1004,11 @@ def eddy_co2_flux(s_loc,track,fluxn = 'flux',inout = '_in'):
     flux = flux * days * area / 1e12
     cumflux = np.cumsum(flux)
     print(cumflux)
-    inps = {}
+    inps = {}; long_name = {}
     inps[fluxn+inout+'_areaday'] = flux
+    long_name[fluxn+inout+'_areaday'] = 'Air-sea CO2 flux with eddy area accounted for'
     inps[fluxn+inout+'_areaday_cumulative'] = cumflux
+    long_name[fluxn+inout+'_areaday_cumulative'] = 'Air-sea CO2 flux cumulatively summed'
 
     """
     Now we deal with the uncertainties...
@@ -780,6 +1026,7 @@ def eddy_co2_flux(s_loc,track,fluxn = 'flux',inout = '_in'):
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'r')
     for fixed in fixed_components:
         t_unc = c['flux_unc_'+fixed+inout] * flux_abs
+        long_name['flux_unc_'+fixed+inout+'_areaday_cumulative'] = 'Air-sea CO2 flux uncertainty for '+fixed +' component cumulatively summed'
         inps['flux_unc_'+fixed+inout+'_areaday_cumulative'] = np.cumsum(t_unc)
         comb_unc[t,:] =  np.cumsum(t_unc)
         t = t+1
@@ -789,6 +1036,7 @@ def eddy_co2_flux(s_loc,track,fluxn = 'flux',inout = '_in'):
         for i in range(len(t_unc)):
             it_unc[i] = np.sqrt(np.sum(t_unc[0:i+1]**2))
         inps['flux_unc_'+vari+inout+'_areaday_cumulative'] = it_unc
+        long_name['flux_unc_'+vari+inout+'_areaday_cumulative'] = 'Air-sea CO2 flux uncertainty for '+vari +' component cumulatively summed'
         comb_unc[t,:] =  it_unc
         t = t+1
     c.close()
@@ -800,14 +1048,24 @@ def eddy_co2_flux(s_loc,track,fluxn = 'flux',inout = '_in'):
     for i in range(flux_abs.shape[0]):
         tot_unc[i] = np.sqrt(np.sum(comb_unc[:,i]**2))
     inps['flux_unc_tot'+inout+'_areaday_cumulative'] = tot_unc
+    long_name['flux_unc_tot'+inout+'_areaday_cumulative'] = 'Total air-sea CO2 flux uncertainty'
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
     for v in list(inps.keys()):
+        #print(v)
+        #print(long_name[v])
         if v in c.variables.keys():
             c[v][:] = np.array(inps[v])
         else:
             m = c.createVariable(v,np.float32,('month_time'))
             m[:] = np.array(inps[v])
         c[v].units = 'Tg C'
+        c[v].long_name = long_name[v]
+        if 'unc' in v:
+            c[v].uncertainties = 'Uncertainties are calculated at the 95% confidence / 2 sigma'
+        if any('flux_unc_'+fix+inout+'_areaday_cumulative' in v for fix in fixed_components):
+            c[v].correlation_assumption = 'Uncertainties are assumed correlated in time due to their temporal correlation'
+        if any('flux_unc_'+fix+inout+'_areaday_cumulative' in v for fix in variable_components):
+            c[v].correlation_assumption = 'Uncertainties are assumed not correlated in time due to their temporal correlation information'
     c.close()
 
 
