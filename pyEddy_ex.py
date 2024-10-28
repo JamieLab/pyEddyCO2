@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import os
 
 def analysis(eddy_v,desc,output_loc):
-
     for eddy_track in np.unique(eddy_v['track']):
         print(eddy_track)
         if os.path.exists(output_loc+'/'+str(eddy_track)+'.nc') == False:
@@ -79,43 +78,9 @@ def analysis(eddy_v,desc,output_loc):
             Edeobs.fluxengine_run(output_loc,eddy_track,add_text='_out_bio',fluxengine_input_file = fluxengine_input_file,fluxengine_path=fluxengine_loc)
             Edeobs.eddy_co2_flux(output_loc,eddy_track,inout = '_in_bio')
             Edeobs.eddy_co2_flux(output_loc,eddy_track,inout='_out_bio')
-            break
+
             #break
 
-def calc_anomalies(output_loc,eddy,fluxengine_loc,fluxengine_input_file,config_file = 'fluxengine_config_night.conf'):#eddy_v,desc,output_loc):
-    #eddy_track = '778711'
-    i = 0
-    for eddy_track in np.unique(eddy_v['track']):
-        print(eddy_track)
-        if eddy_track > 0:
-            """
-            Bio version
-            """
-            # Edeobs.add_province('E:/SCOPE/NN/Ford_et_al_SOM_chla/inputs/neural_network_input.nc',output_loc,eddy_track,prov_var ='prov_smoothed')
-            # Edeobs.calc_anomaly_wrt_fco2net('E:/SCOPE/NN/Ford_et_al_SOM_chla/inputs/neural_network_input.nc',output_loc,[eddy_track],
-            #     ['month_cci_sst_in_median','month_cci_sst_out_median','month_cmems_so_in_median','month_cmems_so_out_median','month_cmems_mlotst_in_median','month_cmems_mlotst_out_median','month_xco2','month_cci_oc_chla_in_median','month_cci_oc_out_median'],
-            #     ['CCI_SST_analysed_sst','CCI_SST_analysed_sst','CMEMS_so','CMEMS_so','CMEMS_mlotst','CMEMS_mlotst','NOAA_ERSL_xCO2','OC-CCI_chl','OC-CCI_chl'])
-            #
-            # Edeobs.calc_fco2('E:/SCOPE/NN/Ford_et_al_SOM_chla/',output_loc,eddy_track,province_var = 'month_province',
-            #     input_var=['month_cci_sst_in_median','month_xco2','month_cmems_so_in_median','month_cmems_mlotst_in_median','month_cci_oc_chla_in_median','month_cci_sst_in_median_anom','month_xco2_anom','month_cmems_so_in_median_anom','month_cmems_mlotst_in_median_anom','month_cci_oc_chla_in_median_anom'])
-            # Edeobs.calc_fco2('E:/SCOPE/NN/Ford_et_al_SOM_chla/',output_loc,eddy_track,province_var = 'month_province',
-            #     input_var=['month_cci_sst_out_median','month_xco2','month_cmems_so_out_median','month_cmems_mlotst_out_median','month_cci_oc_out_median','month_cci_sst_out_median_anom','month_xco2_anom','month_cmems_so_out_median_anom','month_cmems_mlotst_out_median_anom','month_cci_oc_out_median_anom'],
-            #     add_text='_out')
-            Edeobs.fluxengine_file_generate(output_loc,eddy_track,sub_sst = 'month_cci_sst_in_median',sss = 'month_cmems_so_in_median', ws = 'month_ccmp_wind_in_median',press = 'month_msl',
-                xco2atm = 'month_xco2',fco2 = 'month_fco2_sw_in',fco2_net = 'month_fco2_net_unc_in',fco2_para='month_fco2_para_unc_in',fco2_val = 'month_fco2_val_unc_in',fco2_tot = 'month_fco2_tot_unc_in',fluxengine_file = fluxengine_input_file
-                ,sst_unc = 'month_cci_sst_in_unc_mean')
-
-            Edeobs.fluxengine_run(output_loc,eddy_track,config_file = config_file,fluxengine_input_file = fluxengine_input_file,fluxengine_path=fluxengine_loc)
-
-            Edeobs.fluxengine_file_generate(output_loc,eddy_track,sub_sst = 'month_cci_sst_out_median',sss = 'month_cmems_so_out_median', ws = 'month_ccmp_wind_out_median',press = 'month_msl',
-                xco2atm = 'month_xco2',fco2 = 'month_fco2_sw_out',fco2_net = 'month_fco2_net_unc_out',fco2_para='month_fco2_para_unc_out',fco2_val = 'month_fco2_val_unc_out',fco2_tot = 'month_fco2_tot_unc_out',
-                fluxengine_file = fluxengine_input_file,sst_unc = 'month_cci_sst_out_unc_mean')
-            Edeobs.fluxengine_run(output_loc,eddy_track,config_file=config_file,add_text='_out',fluxengine_input_file = fluxengine_input_file,fluxengine_path=fluxengine_loc)
-            Edeobs.eddy_co2_flux(output_loc,eddy_track)
-            Edeobs.eddy_co2_flux(output_loc,eddy_track,inout='_out')
-            i = i+1
-            # if i ==30:
-            #     break;
 
 
 fluxengine_loc = 'F:/eddy/fluxengine'

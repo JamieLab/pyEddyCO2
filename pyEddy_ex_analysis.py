@@ -4,6 +4,7 @@ from netCDF4 import Dataset
 import glob
 import os
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 import numpy as np
 import pyEddy_main as pyEddy_m
 import pyEddy_plot as eplt
@@ -42,12 +43,14 @@ print(len(np.unique(eddy_v['track'])))
 # eddy_v = pyEddy_m.eddy_cross_lon_lat(eddy_v,0)
 # print(len(np.unique(eddy_v['track'])))
 
-
+let = ['a','b','c','d']
 # # g = glob.glob(os.path.join(output_loc,'*.nc'))
 # # #g = np.unique(eddy_v['track'])
-fig,ax = plt.subplots(2,2, figsize=(12, 12))
-m = eplt.base_tracks_start(ax[0,0],latb=[-80,80],lonb = [-180,180])
-m2 = eplt.base_tracks_start(ax[1,1],latb=[-80,80],lonb = [-180,180])
+fig = plt.figure(figsize=(21,15))
+gs = GridSpec(2,3, figure=fig, wspace=0.25,hspace=0.15,bottom=0.1,top=0.93,left=0.075,right=0.95)
+ax = [fig.add_subplot(gs[0,0:2]),fig.add_subplot(gs[0,2]),fig.add_subplot(gs[1,0:2]),fig.add_subplot(gs[1,2])]
+m = eplt.base_tracks_start(ax[0],latb=[-80,80],lonb = [-180,180])
+m2 = eplt.base_tracks_start(ax[2],latb=[-80,80],lonb = [-180,180])
 val = []
 cum = []
 #print(np.unique(eddy_v['track']))
@@ -84,99 +87,105 @@ for i in  np.unique(eddy_v['track']):
                 else:
                     col = '#1A85FF'
 
-                p = ax[0,1].plot(time2,co2,col)
+                # p = ax[0,1].plot(time2,co2,col)
 
-                ax[0,0].scatter(x,y,s=1,color=col)
-                ax[0,1].fill_between(time2,co2-co2_unc,co2+co2_unc,color=col,alpha=0.4)
-                ax[1,1].scatter(x[0],y[0],s=3,color=col)
+                # ax[0,0].scatter(x,y,s=1,color=col)
+                # ax[0,1].fill_between(time2,co2-co2_unc,co2+co2_unc,color=col,alpha=0.4)
+                ax[0].scatter(x[0],y[0],s=3,color=col)
         c.close()
+        if i == 40:
+            break
 val = np.array(val)
 cum = np.array(cum)
 eplt.base_tracks_end(ax[0],m)
-eplt.base_tracks_end(ax[1,1],m2)
-ax[0,1].set_ylim([-4,4])
-ax[0,1].set_ylabel('Net Eddy CO${_2}$ flux (Tg C)')
-ax[0,1].set_xlabel('Year')
+# eplt.base_tracks_end(ax[1,1],m2)
+# ax[0,1].set_ylim([-4,4])
+# ax[0,1].set_ylabel('Net Eddy CO${_2}$ flux (Tg C)')
+# ax[0,1].set_xlabel('Year')
 print(val)
 print(np.nanmedian(val))
 print(np.nansum(cum))
 print(np.nanmedian(cum))
-ax[1,0].boxplot(val[np.isnan(val) == False])
-ax[1,0].plot([0.5,1.5],[0,0])
-ax[1,0].set_ylim([-40,40])
+ax[1].boxplot(val[np.isnan(val) == False])
+ax[1].plot([0.5,1.5],[0,0])
+ax[1].set_ylim([-40,40])
 #ax.set_title('N='+str(len(g)))
-ax[1,0].set_ylabel('Change in eddy CO${_2}$ flux \n compared to the surrounding \n water CO${_2}$ flux (%)')
-ax[1,0].set_xticks(ticks=[1],labels =['(N = '+str(len(val[np.isnan(val) == False])) + ')'])
+ax[1].set_ylabel('Change in eddy CO${_2}$ flux \n compared to the surrounding \n water CO${_2}$ flux (%)')
+ax[1].set_xticks(ticks=[1],labels =['(N = '+str(len(val[np.isnan(val) == False])) + ')'])
 #ax[1,0].set_xticks(ticks=[1],labels =['(N = '+str(len(g)) + ')'])
-fig.tight_layout()
+# fig.tight_layout()
+
+for i in range(4):
+    #worldmap.plot(color="lightgrey", ax=ax[i])
+    ax[i].text(0.92,1.06,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
 fig.savefig('figs/anti_new_global_eddy_flux.png',dpi=300)
 
-"""
-"""
-fig2,ax = plt.subplots(1,1, figsize=(16, 6))
-
-for i in np.unique(eddy_v['track']):
-    print(i)
-    c = Dataset(output_loc+'/'+str(i)+'.nc','r')
-    #c = Dataset(i,'r')
-    time = np.array(c['month_time'])
-    time2 = []
-    for j in range(len(time)):
-        time2.append(pyEddy_m.date_con(int(time[j])))
-    if time2[0].year >=1998:
-        co2 = np.array(c['flux_in_areaday_cumulative'])
-        co2_o = np.array(c['flux_out_areaday_cumulative'])
-        co2_unc = np.array(c['flux_unc_tot_in_areaday_cumulative'])
-        #co2_o_unc = np.array(c['flux_unc_total_out_areaday_cumulative'])
-        lat = np.array(c['latitude'])
-        lon = np.array(c['longitude'])
-        #x,y = m(lon,lat)
-
-
-        co2_p = (co2-co2_o)/co2_o
-        #val.append(co2_p[-1]*100)
-        col = 'k'
-        p = ax.plot(time2,co2,col)
-
-
-        #ax.plot(x,y,color=a)
-        #ax.fill_between(time2,co2-co2_unc,co2+co2_unc,color=col,alpha=0.4)
-    c.close()
-ax.set_ylim([-4,4])
-ax.set_ylabel('Net Eddy CO${_2}$ flux (Tg C)')
-ax.set_xlabel('Year')
-fig2.savefig('figs/anti_global_eddy_flux_test_netfluxexpand.png',dpi=300)
-
-"""
-"""
-fig,ax = plt.subplots(1,1, figsize=(14,10))
-m = eplt.base_tracks_start(ax,latb=[-80,80],lonb = [-180,180])
-# m2 = eplt.base_tracks_start(ax[1,1],latb=[-80,80],lonb = [-180,180])
-val = []
-cum = []
-#print(np.unique(eddy_v['track']))
-
-for i in  np.unique(eddy_v['track']):
-    print(i)
-    if os.path.exists(output_loc+'/'+str(i)+'.nc') == True:
-        c = Dataset(output_loc+'/'+str(i)+'.nc','r')
-        #c = Dataset(i,'r')
-        time = np.array(c['month_time'])
-        time2 = []
-        for j in range(len(time)):
-            time2.append(pyEddy_m.date_con(int(time[j])))
-        if time2[0].year >=1998:
-            co2 = np.array(c['flux_in_areaday_cumulative'])
-            co2_o = np.array(c['flux_out_areaday_cumulative'])
-            co2_unc = np.array(c['flux_unc_tot_in_areaday_cumulative'])/2
-            #co2_o_unc = np.array(c['flux_unc_total_out_areaday_cumulative'])
-            lat = np.array(c['month_latitude'])
-            lon = np.array(c['month_longitude'])
-            x,y = m(lon,lat)
-
-            a = ax.scatter(x[0],y[0],s=6,c = co2[-1],vmin = -1,vmax=1,cmap=cmocean.cm.balance)
-        c.close()
-c2 = plt.colorbar(a)
-c2.set_label('Cumulative net CO$_{2}$ flux (Tg C)')
-eplt.base_tracks_end(ax,m)
-fig.savefig('figs/anti_global_eddy_flux_uptake.png',dpi=300)
+# """
+# """
+# fig2,ax = plt.subplots(1,1, figsize=(16, 6))
+#
+# for i in np.unique(eddy_v['track']):
+#     print(i)
+#     c = Dataset(output_loc+'/'+str(i)+'.nc','r')
+#     #c = Dataset(i,'r')
+#     time = np.array(c['month_time'])
+#     time2 = []
+#     for j in range(len(time)):
+#         time2.append(pyEddy_m.date_con(int(time[j])))
+#     if time2[0].year >=1998:
+#         co2 = np.array(c['flux_in_areaday_cumulative'])
+#         co2_o = np.array(c['flux_out_areaday_cumulative'])
+#         co2_unc = np.array(c['flux_unc_tot_in_areaday_cumulative'])
+#         #co2_o_unc = np.array(c['flux_unc_total_out_areaday_cumulative'])
+#         lat = np.array(c['latitude'])
+#         lon = np.array(c['longitude'])
+#         #x,y = m(lon,lat)
+#
+#
+#         co2_p = (co2-co2_o)/co2_o
+#         #val.append(co2_p[-1]*100)
+#         col = 'k'
+#         p = ax.plot(time2,co2,col)
+#
+#
+#         #ax.plot(x,y,color=a)
+#         #ax.fill_between(time2,co2-co2_unc,co2+co2_unc,color=col,alpha=0.4)
+#     c.close()
+# ax.set_ylim([-4,4])
+# ax.set_ylabel('Net Eddy CO${_2}$ flux (Tg C)')
+# ax.set_xlabel('Year')
+# fig2.savefig('figs/anti_global_eddy_flux_test_netfluxexpand.png',dpi=300)
+#
+# """
+# """
+# fig,ax = plt.subplots(1,1, figsize=(14,10))
+# m = eplt.base_tracks_start(ax,latb=[-80,80],lonb = [-180,180])
+# # m2 = eplt.base_tracks_start(ax[1,1],latb=[-80,80],lonb = [-180,180])
+# val = []
+# cum = []
+# #print(np.unique(eddy_v['track']))
+#
+# for i in  np.unique(eddy_v['track']):
+#     print(i)
+#     if os.path.exists(output_loc+'/'+str(i)+'.nc') == True:
+#         c = Dataset(output_loc+'/'+str(i)+'.nc','r')
+#         #c = Dataset(i,'r')
+#         time = np.array(c['month_time'])
+#         time2 = []
+#         for j in range(len(time)):
+#             time2.append(pyEddy_m.date_con(int(time[j])))
+#         if time2[0].year >=1998:
+#             co2 = np.array(c['flux_in_areaday_cumulative'])
+#             co2_o = np.array(c['flux_out_areaday_cumulative'])
+#             co2_unc = np.array(c['flux_unc_tot_in_areaday_cumulative'])/2
+#             #co2_o_unc = np.array(c['flux_unc_total_out_areaday_cumulative'])
+#             lat = np.array(c['month_latitude'])
+#             lon = np.array(c['month_longitude'])
+#             x,y = m(lon,lat)
+#
+#             a = ax.scatter(x[0],y[0],s=6,c = co2[-1],vmin = -1,vmax=1,cmap=cmocean.cm.balance)
+#         c.close()
+# c2 = plt.colorbar(a)
+# c2.set_label('Cumulative net CO$_{2}$ flux (Tg C)')
+# eplt.base_tracks_end(ax,m)
+# fig.savefig('figs/anti_global_eddy_flux_uptake.png',dpi=300)
