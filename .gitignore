@@ -6,3 +6,5 @@
 fluxengine.log
 /figs
 /figs/*
+/data
+/data/*

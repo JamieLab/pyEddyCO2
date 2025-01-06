@@ -14,8 +14,8 @@ import sys
 """
 Paths to the OceanICU framework...
 """
-sys.path.append('C:\\Users\\df391\\OneDrive - University of Exeter\\Post_Doc_ESA_Contract\\OceanICU')
-sys.path.append('C:\\Users\\df391\\OneDrive - University of Exeter\\Post_Doc_ESA_Contract\\OceanICU\Data_Loading')
+sys.path.append('C:/Users/danie_em50j4m/Documents/OceanICU')
+sys.path.append('C:/Users/danie_em50j4m/Documents/OceanICU/Data_Loading')
 
 def timeseries_start(eddy,desc,s_loc,track_no):
     f = np.squeeze(np.argwhere(eddy['track'] == track_no))
@@ -213,6 +213,7 @@ def add_sstCCI(loc,radm = 3,plot=0,output_loc='',track = 0,bias = 0,v3=True):
                 file = glob.glob(os.path.join(loc,date.strftime("%Y"),date.strftime("%m"),date.strftime("%d"),date.strftime("%Y%m%d*.nc")))
             else:
                 file = glob.glob(os.path.join(loc,date.strftime("%Y"),date.strftime("%m"),date.strftime("%Y%m%d*.nc")))
+            print(file)
             # if radius_check(lonc,latc,lons,lats) > rad[1]:
             radmax = radius_check(lonc,latc,lons,lats)
 
@@ -312,6 +313,7 @@ def add_OCCCI(loc,radm = 3,plot=1,output_loc='',track = 0,bias = 0,name='OC-CCI 
 
             if (lats[0] != 0.0) & (lons[0] != 180.0):
                 file = glob.glob(os.path.join(loc,date.strftime("%Y"),date.strftime("*%Y%m%d-fv6.0.nc")))
+                print(file)
                 if len(file) == 0:
                     print('No file')
                 else:
@@ -865,34 +867,35 @@ def calc_fco2(net_loc,s_loc,track,province_var = False,input_var = [],add_text='
     val = np.loadtxt(os.path.join(net_loc,'validation','independent_test_rmsd.csv'),delimiter=',')
 
     for v in uni_prov:
-        f = np.where(prov == v)[0]
-        inp = np.zeros((len(f),len(input_var)))
-        t = 0
-        for j in input_var:
-            inp[:,t] = inps[j][f]
-            t=t+1
-        scalar = load(open(os.path.join(net_loc,'scalars',f'prov_{v}_scalar.pkl'),'rb'))
-        mod_inp = scalar.transform(inp)
-        out_t = np.zeros((len(f),ens)); out_t[:] = np.nan
-        for i in range(ens):
-            mod = tf.keras.models.load_model(os.path.join(net_loc,'networks',f'prov_{v}_model_ens{i}'),compile=False)
-            out_t[:,i] = np.squeeze(mod.predict(mod_inp))
-        fco2[f] = np.nanmean(out_t,axis=1)
-        fco2_net[f] = np.nanstd(out_t,axis=1)*2
+        if np.isnan(v) != 1:
+            f = np.where(prov == v)[0]
+            inp = np.zeros((len(f),len(input_var)))
+            t = 0
+            for j in input_var:
+                inp[:,t] = inps[j][f]
+                t=t+1
+            scalar = load(open(os.path.join(net_loc,'scalars',f'prov_{v}_scalar.pkl'),'rb'))
+            mod_inp = scalar.transform(inp)
+            out_t = np.zeros((len(f),ens)); out_t[:] = np.nan
+            for i in range(ens):
+                mod = tf.keras.models.load_model(os.path.join(net_loc,'networks',f'prov_{v}_model_ens{i}'),compile=False)
+                out_t[:,i] = np.squeeze(mod.predict(mod_inp))
+            fco2[f] = np.nanmean(out_t,axis=1)
+            fco2_net[f] = np.nanstd(out_t,axis=1)*2
 
-        lut = load(open(os.path.join(net_loc,'unc_lut',f'prov_{v}_lut.pkl'),'rb'))
-        lut = lut[0]
-        fco2_para[f] = np.squeeze(nnt.lut_retr(lut,mod_inp))
-        g = np.where(val[:,0] == v)
-        fco2_val[f] = val[g,1]*2 #for 95% confidence
-        outs = {}
-        outs['month_fco2_sw'+add_text] = fco2
-        outs['month_fco2_net_unc'+add_text] = fco2_net
-        outs['month_fco2_para_unc'+add_text] = fco2_para
-        outs['month_fco2_val_unc'+add_text] = fco2_val
-        outs['month_fco2_tot_unc' + add_text] = np.sqrt(fco2_net**2 + fco2_para**2 + fco2_val**2)
-        long_names = ['Fugacity of CO2 in seawater','Fugacity of CO2 in seawater network uncertainty','Fugacity of CO2 in seawater parameter uncertainty',
-        'Fugacity of CO2 in seawater evaluation uncertainty','Fugatcity of CO2 in seawater total uncertainty']
+            lut = load(open(os.path.join(net_loc,'unc_lut',f'prov_{v}_lut.pkl'),'rb'))
+            lut = lut[0]
+            fco2_para[f] = np.squeeze(nnt.lut_retr(lut,mod_inp))
+            g = np.where(val[:,0] == v)
+            fco2_val[f] = val[g,1]*2 #for 95% confidence
+    outs = {}
+    outs['month_fco2_sw'+add_text] = fco2
+    outs['month_fco2_net_unc'+add_text] = fco2_net
+    outs['month_fco2_para_unc'+add_text] = fco2_para
+    outs['month_fco2_val_unc'+add_text] = fco2_val
+    outs['month_fco2_tot_unc' + add_text] = np.sqrt(fco2_net**2 + fco2_para**2 + fco2_val**2)
+    long_names = ['Fugacity of CO2 in seawater','Fugacity of CO2 in seawater network uncertainty','Fugacity of CO2 in seawater parameter uncertainty',
+    'Fugacity of CO2 in seawater evaluation uncertainty','Fugatcity of CO2 in seawater total uncertainty']
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
     i = 0
     for v in list(outs.keys()):

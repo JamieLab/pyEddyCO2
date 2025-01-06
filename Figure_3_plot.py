@@ -77,4 +77,4 @@ let = ['a','b','c','d']
 for i in range(4):
     #worldmap.plot(color="lightgrey", ax=ax[i])
     ax[i].text(0.92,1.06,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
-fig.savefig('figs/unc_plot.png')
+fig.savefig('figs/manuscript/Figure_3.png')
