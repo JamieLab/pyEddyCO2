@@ -14,8 +14,11 @@ import sys
 """
 Paths to the OceanICU framework...
 """
-sys.path.append('C:/Users/danie_em50j4m/Documents/OceanICU')
-sys.path.append('C:/Users/danie_em50j4m/Documents/OceanICU/Data_Loading')
+# sys.path.append('C:/Users/danie_em50j4m/Documents/OceanICU')
+# sys.path.append('C:/Users/danie_em50j4m/Documents/OceanICU/Data_Loading')
+oceaniculoc = 'C:\\Users\\df391\\OneDrive - University of Exeter\\Post_Doc_ESA_Contract\\OceanICU'
+sys.path.append(os.path.join(oceaniculoc,'Data_Loading'))
+sys.path.append(os.path.join(oceaniculoc))
 
 def timeseries_start(eddy,desc,s_loc,track_no):
     f = np.squeeze(np.argwhere(eddy['track'] == track_no))
@@ -589,7 +592,7 @@ def grid_switch_expand(lon,var,sign):
     return lon,var_temp
 
 
-def produce_monthly(track,s_loc,vars=[],unc=False,unc_days = 3):
+def produce_monthly(track,s_loc,vars=[],unc=False,unc_days = 3,average = 'median'):
     if not unc:
         vars.append('latitude')
         vars.append('longitude')
@@ -622,6 +625,7 @@ def produce_monthly(track,s_loc,vars=[],unc=False,unc_days = 3):
     for v in vars:
         data = np.array(c[v])
         data_o = np.zeros((len(out_time))); data_o[:] = np.nan
+        data_out_std = np.copy(data_o)
         for i in range(len(out_time)):
             if unc:
                 data_o[i] = np.nanmean(data[time_m[i]]) / np.sqrt(len(time_m[i])/unc_days)
@@ -637,10 +641,20 @@ def produce_monthly(track,s_loc,vars=[],unc=False,unc_days = 3):
                             data_o[i] = temp
                     else:
                         data_o[i] = np.nanmean(data[time_m[i]])
-                else:
+                elif v == 'latitude':
                     data_o[i] = np.nanmean(data[time_m[i]])
-
+                else:
+                    if average == 'mean':
+                        data_o[i] = np.nanmean(data[time_m[i]])
+                        data_out_std[i] = np.nanstd(data[time_m[i]])
+                    elif average == 'median':
+                        data_o[i] = np.nanmedian(data[time_m[i]])
+                        data_out_std[i] = np.nanmedian(np.abs(data[time_m[i]] - data_o[i]))*1.4826
         out[v] = data_o
+        if (v == 'latitude') | (v =='longitude'):
+            print('')
+        else:
+            out[v+'_std'] = data_out_std
     c.close()
 
     c = Dataset(os.path.join(s_loc,str(track) +'.nc'),'a')
@@ -655,14 +669,23 @@ def produce_monthly(track,s_loc,vars=[],unc=False,unc_days = 3):
         m[:] = np.array(out_time)
     c['month_time'].units = "days since 1950-01-01 00:00:00"
     c['month_time'].long_name = 'Time of monthly averages'
-    for v in vars:
+    for v in list(out.keys()):
         if 'month_'+v in c.variables.keys():
             c['month_'+v][:] = out[v]
         else:
             m = c.createVariable('month_'+v,np.float32,('month_time'))
             m[:] = out[v]
-        c['month_'+v].long_name = 'Monthly '+ c[v].long_name
-        c['month_'+v].units = c[v].units
+        if v[-3:] == 'std':
+            c['month_'+v].long_name = 'Monthly '+ c[v[0:-4]].long_name + ' standard deviation'
+            c['month_'+v].units = c[v[0:-4]].units
+        else:
+            c['month_'+v].long_name = 'Monthly '+ c[v].long_name
+            c['month_'+v].units = c[v].units
+        c['month_'+v].averaging = average
+        if v == 'longitude':
+            c['month_'+v].averaging = 'mean'
+        if v == 'latitude':
+            c['month_'+v].averaging = 'mean'
     c.close()
 
 def add_noaa(loc,s_loc,track):

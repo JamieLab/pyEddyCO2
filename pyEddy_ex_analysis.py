@@ -12,6 +12,8 @@ import datetime
 import matplotlib.transforms
 import cmocean
 from matplotlib import patches
+import datetime
+import weight_stats as ws
 font = {'weight' : 'normal',
         'size'   :12}
 matplotlib.rc('font', **font)
@@ -27,49 +29,262 @@ cycl_file = 'F:/Data/AVISO_EDDIES/META3.2_DT_allsat_Cyclonic_long_19930101_20220
 
 """
 """
-# Loading the eddy netcdf data into a dictionary that corresponds to the netcdf file variable names.
-# This will not load anything that is defined in "no_load". If you want to load all variables leave
-# no_load empty (i.e [])
-eddy_an,desc = pyEddy_m.AVISO_load(anti_file,no_load)
-print(desc)
-# # Here we split the eddy dict down to a set spatial region, and temporal window. This will
-# # include all eddies even if they appear in the domain for 1 day. We can perform checks later that
-# # they remain in the domain for a period. If you want all the data, then you don't need to use
-# # this function.
-#
-# eddy_v = pyEddy_m.box_split(eddy_v,[-34,-30],[5,25],[datetime.datetime(2002,7,1),datetime.datetime(2018,12,31)],strict_time=True)
-eddy_an = pyEddy_m.box_split(eddy_an,[-80,80],[-180,180],[datetime.datetime(1993,1,1),datetime.datetime(2022,12,31)],strict_time=False)
-# # eddy_v = pyEddy_m.box_split(eddy_v,[-35,-15],[5,25],[datetime.datetime(2002,7,1),datetime.datetime(2018,12,31)],strict_time=True)
-# #
-eddy_an = pyEddy_m.eddy_length_min(eddy_an,365)
-#
-eddy_cy,desc = pyEddy_m.AVISO_load(cycl_file,no_load)
-print(desc)
-# # Here we split the eddy dict down to a set spatial region, and temporal window. This will
-# # include all eddies even if they appear in the domain for 1 day. We can perform checks later that
-# # they remain in the domain for a period. If you want all the data, then you don't need to use
-# # this function.
-#
-# eddy_v = pyEddy_m.box_split(eddy_v,[-34,-30],[5,25],[datetime.datetime(2002,7,1),datetime.datetime(2018,12,31)],strict_time=True)
-eddy_cy = pyEddy_m.box_split(eddy_cy,[-80,80],[-180,180],[datetime.datetime(1993,1,1),datetime.datetime(2022,12,31)],strict_time=False)
-# eddy_v = pyEddy_m.box_split(eddy_v,[-35,-15],[5,25],[datetime.datetime(2002,7,1),datetime.datetime(2018,12,31)],strict_time=True)
-#
-eddy_cy = pyEddy_m.eddy_length_min(eddy_cy,365)
-# eddy_v = pyEddy_m.eddy_cross_lon_lat(eddy_v,0)
-# print(len(np.unique(eddy_v['track'])))
+load = True
+if load:
+    # Loading the eddy netcdf data into a dictionary that corresponds to the netcdf file variable names.
+    # This will not load anything that is defined in "no_load". If you want to load all variables leave
+    # no_load empty (i.e [])
+    eddy_an,desc = pyEddy_m.AVISO_load(anti_file,no_load)
+    print(desc)
+    # # Here we split the eddy dict down to a set spatial region, and temporal window. This will
+    # # include all eddies even if they appear in the domain for 1 day. We can perform checks later that
+    # # they remain in the domain for a period. If you want all the data, then you don't need to use
+    # # this function.
+    #
+    # eddy_v = pyEddy_m.box_split(eddy_v,[-34,-30],[5,25],[datetime.datetime(2002,7,1),datetime.datetime(2018,12,31)],strict_time=True)
+    eddy_an = pyEddy_m.box_split(eddy_an,[-80,80],[-180,180],[datetime.datetime(1993,1,1),datetime.datetime(2022,12,31)],strict_time=False)
+    # # eddy_v = pyEddy_m.box_split(eddy_v,[-35,-15],[5,25],[datetime.datetime(2002,7,1),datetime.datetime(2018,12,31)],strict_time=True)
+    # #
+    eddy_an = pyEddy_m.eddy_length_min(eddy_an,365)
+    #
+    eddy_cy,desc = pyEddy_m.AVISO_load(cycl_file,no_load)
+    print(desc)
+    # # Here we split the eddy dict down to a set spatial region, and temporal window. This will
+    # # include all eddies even if they appear in the domain for 1 day. We can perform checks later that
+    # # they remain in the domain for a period. If you want all the data, then you don't need to use
+    # # this function.
+    #
+    # eddy_v = pyEddy_m.box_split(eddy_v,[-34,-30],[5,25],[datetime.datetime(2002,7,1),datetime.datetime(2018,12,31)],strict_time=True)
+    eddy_cy = pyEddy_m.box_split(eddy_cy,[-80,80],[-180,180],[datetime.datetime(1993,1,1),datetime.datetime(2022,12,31)],strict_time=False)
+    # eddy_v = pyEddy_m.box_split(eddy_v,[-35,-15],[5,25],[datetime.datetime(2002,7,1),datetime.datetime(2018,12,31)],strict_time=True)
+    #
+    eddy_cy = pyEddy_m.eddy_length_min(eddy_cy,365)
+    # eddy_v = pyEddy_m.eddy_cross_lon_lat(eddy_v,0)
+    # print(len(np.unique(eddy_v['track'])))
 
 let = ['a','b','c','d','e','f','g']
 # # g = glob.glob(os.path.join(output_loc,'*.nc'))
-# # #g = np.unique(eddy_v['track'])
+# # #g = np.unique(eddy_v['track'])#
+plot_figure_1 = False
 plot_figure_2 = False
-plot_figure_4 = False
-plot_figure_4_bio = True
+plot_figure_3 = False
+plot_figure_4 =False
+plot_figure_4_bio = False
 plot_figure_5 = False
 plot_figure_5_bio = False
+estimate_cumulative =True
+plot_figure_socat = False
+plot_figure_socat_bio = False
+
+"""
+Figure 1
+"""
+if plot_figure_1:
+    ref_time = datetime.datetime(1950,1,1)
+    font = {'weight' : 'normal',
+            'size'   :20}
+    matplotlib.rc('font', **font)
+    fig = plt.figure(figsize=(28,16))
+    row = 2;col=3
+    gs = GridSpec(row,col, figure=fig, wspace=0.25,hspace=0.15,bottom=0.1,top=0.95,left=0.05,right=0.95)
+    axs = [[fig.add_subplot(gs[i, j]) for j in range(col)] for i in range(row)]
+    flatList = [element for innerList in axs for element in innerList]
+    ax = flatList
+
+    c = Dataset(output_loc+'/'+'194465'+'.nc','r')
+    lat = np.array(c['latitude'])
+    lon = np.array(c['longitude'])
+    time = np.array(c['time'])
+    m = eplt.base_tracks_start(ax[2],latb=[45,60],lonb = [170,190])
+    x,y = m(lon,lat)
+    ax[2].scatter(x,y,s=12,c = time,cmap=cmocean.cm.thermal)
+    eplt.base_tracks_end(ax[2],m)
+    parallels = np.arange(50.,62,5)
+    meridion = np.arange(170,191,10)
+    m.drawparallels(parallels,labels=[True,False,False,False])
+    m.drawmeridians(meridion,labels=[False,False,False,True])
+    ax[2].set_xlabel('Longitude',labelpad=30)
+    ax[2].set_ylabel('Latitude',labelpad=60)
+
+    mon_time = np.array(c['month_time'])
+    time_da = []
+    time_mon = []
+    for i in range(len(mon_time)):
+        time_mon.append(ref_time+datetime.timedelta(days=int(mon_time[i])))
+    for i in range(len(time)):
+        time_da.append(ref_time+datetime.timedelta(days=int(time[i])))
+    time_mon=np.array(time_mon)
+    time_da = np.array(time_da)
+
+    sst = np.array(c['cci_sst_in_median'])
+    f = np.where(np.isnan(sst) == 0)
+    sst= sst[f]
+    sst_unc = np.array(c['cci_sst_in_unc_mean'][f])
+    ax[0].plot(time_da[f],sst,color='k')
+    ax[0].fill_between(time_da[f],sst-sst_unc/2,sst+sst_unc/2,alpha=0.6,color='k')
+    ax[0].fill_between(time_da[f],sst-sst_unc,sst+sst_unc,alpha=0.4,color='k')
+    sst_month = np.array(c['month_cci_sst_in_median'])
+    ax[0].plot(time_mon,sst_month,color='r',linewidth =2)
+    ax[0].set_ylabel('Sea Surface Temperature (Kelvin)')
+
+
+    sss = np.array(c['cmems_so_in_median'])
+    f = np.where(np.isnan(sss) == 0)
+    sss = sss[f]
+    sss_unc = 0.3*2
+    ax[1].plot(time_da[f],sss,color='k')
+    ax[1].fill_between(time_da[f],sss-sss_unc/2,sss+sss_unc/2,alpha=0.6,color='k')
+    ax[1].fill_between(time_da[f],sss-sss_unc,sss+sss_unc,alpha=0.4,color='k')
+    sss_month = np.array(c['month_cmems_so_in_median'])
+    ax[1].plot(time_mon,sss_month,color='r',linewidth =2)
+    ax[1].set_ylabel('Sea Surface Salinity (psu)')
+
+    # ws = np.array(c['ccmp_wind_in_median'])
+    # f = np.where(np.isnan(ws) == 0)
+    # ws = ws[f]
+    # ws_unc = 3.8
+    # ax[3].plot(time_da[f],ws,color='k')
+    # ax[3].fill_between(time_da[f],ws-ws_unc/2,ws+ws_unc/2,alpha=0.6,color='k')
+    # ax[3].fill_between(time_da[f],ws-ws_unc,ws+ws_unc,alpha=0.4,color='k')
+    # ax[3].set_ylim([0,25])
+    # ws_month = np.array(c['month_ccmp_wind_in_median'])
+    # ax[3].plot(time_mon,ws_month,color='b')
+
+    fco2 = np.array(c['month_fco2_sw_in_physics'])
+    xco2 = np.array(c['month_xco2'])
+    fco2_unc = np.array(c['month_fco2_tot_unc_in_physics'])
+    socat_fco2 = np.array(c['socat_mean_fco2'])
+    socat_fco2[socat_fco2==0] = np.nan
+    ax[3].plot(time_mon,fco2,color='k')
+    ax[3].scatter(time_da,socat_fco2,72,color='r',zorder=6)
+    ax[3].fill_between(time_mon,fco2-fco2_unc/2,fco2+fco2_unc/2,alpha=0.6,color='k')
+    ax[3].fill_between(time_mon,fco2-fco2_unc,fco2+fco2_unc,alpha=0.4,color='k')
+    ax[3].plot(time_mon,xco2,'k--')
+    ax[3].set_ylabel('fCO$_{2 (sw)}$ or xCO$_{2 (atm)}$ ($\mu$atm or ppm)')
+    fco2 = np.array(c['flux_in_physics'])
+    fco2_unc = np.array(c['flux_unc_in_physics'])*np.abs(fco2)
+
+    ax[4].plot(time_mon,fco2,color='k',zorder=6)
+    ax[4].fill_between(time_mon,fco2-fco2_unc/2,fco2+fco2_unc/2,alpha=0.6,color='k')
+    ax[4].fill_between(time_mon,fco2-fco2_unc,fco2+fco2_unc,alpha=0.4,color='k')
+    ax[4].plot([time_da[0],time_da[-1]],[0,0],'k--')
+    ax[4].set_ylim([-0.5,0.5])
+    ax[4].set_ylabel('Air-sea CO$_2$ flux (g C m$^{-2}$ d$^{-1}$)\n(-ve indicates atmosphere to ocean exchange)')
+
+    fco2 = np.array(c['flux_in_physics_areaday_cumulative'])
+    fco2_unc = np.array(c['flux_unc_tot_in_physics_areaday_cumulative'])
+
+    fco2_out = np.array(c['flux_out_physics_areaday_cumulative'])
+    fco2_unc_out = np.array(c['flux_unc_tot_out_physics_areaday_cumulative'])
+
+    ax[5].plot(time_mon,fco2,color='k',zorder=6,linewidth=2)
+    ax[5].fill_between(time_mon,fco2-fco2_unc/2,fco2+fco2_unc/2,alpha=0.6,color='k',zorder=5)
+    ax[5].fill_between(time_mon,fco2-fco2_unc,fco2+fco2_unc,alpha=0.4,color='k',zorder=5)
+
+    ax[5].plot(time_mon,fco2_out,color='r',zorder=6,linewidth=2)
+    ax[5].fill_between(time_mon,fco2_out-fco2_unc_out/2,fco2_out+fco2_unc_out/2,alpha=0.6,color='r')
+    ax[5].fill_between(time_mon,fco2_out-fco2_unc_out,fco2_out+fco2_unc_out,alpha=0.4,color='r')
+    ax[5].set_ylabel('Cumulative air-sea CO$_2$ flux (Tg C)\n(-ve indicates atmosphere to ocean exchange)')
+    ax[5].plot([time_da[0],time_da[-1]],[0,0],'k--')
+
+    c.close()
+    ax2 = [0,1]
+    for i in ax2:
+        ax[i].set_xticklabels([])
+    ax2 = [0,1,3,4,5]
+    for i in ax2:
+        ax[i].tick_params(axis='x', labelrotation=25)
+        ax[i].set_xlim([time_da[0],time_da[-1]])
+    ax2 = [3,4,5]
+    for i in ax2:
+        ax[i].set_xlabel('Date (Year - Month)')
+    for i in range(6):
+        ax[i].text(0.05,0.96,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
+    fig.savefig('figs/manuscript/figure_1.png',dpi=300)
+
 """
 Figure 2
 """
 if plot_figure_2:
+    font = {'weight' : 'normal',
+            'size'   : 14}
+    matplotlib.rc('font', **font)
+    fold = 'F:/eddy/n_anticyclonic'
+
+    files = ['496.nc','194465.nc']
+    fig = plt.figure(figsize=(15,15))
+    gs = GridSpec(2,2, figure=fig, wspace=0.25,hspace=0.15,bottom=0.1,top=0.93,left=0.075,right=0.95)
+    ax = [fig.add_subplot(gs[0,0]),fig.add_subplot(gs[0,1]),fig.add_subplot(gs[1,0]),fig.add_subplot(gs[1,1])]
+    cols = ['#332288','#44AA99','#882255','#DDCC77', '#117733', '#88CCEE','#999933','#CC6677']
+    cou = 0
+    for file in files:
+        c = Dataset(fold + '/' + file,'r')
+        keys = c.variables.keys()
+
+        l = []
+        for key in keys:
+            if ('unc' in key) & ('cumulative' in key) & ('in_physics' in key):
+                l.append(key)
+
+        print(l)
+        label=['Gas Transfer','Wind','fCO$_{2 (sw)}$','Schmidt','Solubility skin','Solubility subskin','fCO$_{2 (atm)}$']
+        uncs = ['k','wind','xco2atm','fco2sw']
+        uncs_comp= ['ph2o','schmidt','solskin_unc','solsubskin_unc']
+
+        combined = np.zeros((len(uncs)+len(uncs_comp),len(c[l[0]])))
+        print(combined.shape)
+        t = 0
+        for i in range(len(uncs)):
+            combined[t,:] = np.array(c['flux_unc_'+uncs[i]+'_in_physics_areaday_cumulative'])
+            t=t+1
+
+        for i in range(len(uncs_comp)):
+            combined[t,:] = np.sqrt(np.array(c['flux_unc_'+uncs_comp[i]+'_in_physics_areaday_cumulative'])**2 + np.array(c['flux_unc_'+uncs_comp[i]+'_fixed_in_physics_areaday_cumulative'])**2)
+            t = t+1
+
+        print(combined)
+        data_atm = combined[[2,4],:]
+        combined = combined[[0,1,3,5,6,7],:]
+        print(combined.shape)
+        atm = np.sqrt(np.sum(data_atm**2,axis=0))
+        atm = atm[np.newaxis,:]
+        combined = np.append(combined,atm,axis=0)
+        print(combined.shape)
+        print(combined)
+        totals = []
+        for i in range(combined.shape[1]):
+            totals.append(np.sum(combined[:,i]))
+
+
+        for i in range(combined.shape[1]):
+            bottom = 0
+            for j in range(combined.shape[0]):
+                if i == 1:
+                    p = ax[cou].bar(i+1,(combined[j,i]/totals[i])*100,bottom=bottom,color=cols[j],label=label[j])
+                else:
+                    p = ax[cou].bar(i+1,(combined[j,i]/totals[i])*100,bottom=bottom,color=cols[j])
+                bottom = bottom + (combined[j,i]/totals[i])*100
+
+        print(totals)
+        ax[cou].set_xlabel('Month since formation')
+        ax[cou].set_ylabel('Relative contribution to uncertainty (%)')
+        cou = cou+1
+        for i in range(combined.shape[0]):
+            ax[cou].plot(np.array(range(1,combined.shape[1]+1)),combined[i,:],color=cols[i],label=label[i])
+        ax[cou].legend()
+        ax[cou].set_xlabel('Month since formation')
+        ax[cou].set_ylabel('Absolute contribution to uncertainty (Tg C)')
+        cou=cou+1
+    let = ['a','b','c','d']
+    for i in range(4):
+        #worldmap.plot(color="lightgrey", ax=ax[i])
+        ax[i].text(0.92,1.06,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
+    fig.savefig('figs/manuscript/Figure_2.png')
+
+"""
+Figure 3
+"""
+if plot_figure_3:
     font = {'weight' : 'normal',
             'size'   :20}
     matplotlib.rc('font', **font)
@@ -130,7 +345,7 @@ if plot_figure_2:
     for i in range(2):
         ax[i].text(0.92,1.06,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
     cba.set_label('Cumulative net CO$_{2}$ flux (Tg C)')
-    fig.savefig('figs/manuscript/figure_2.png',dpi=300)
+    fig.savefig('figs/manuscript/figure_3.png',dpi=300)
 
 """
 Figure 4
@@ -441,7 +656,7 @@ if plot_figure_5:
     unc_cal = []
     cum = []
     anti_loc = []
-    cou = 0
+    cou = 1
     for i in  np.unique(eddy_an['track']):
         #print(i)
         if os.path.exists(output_loc+'/'+str(i)+'.nc') == True:
@@ -479,7 +694,7 @@ if plot_figure_5:
     unc_cal_cy = []
     cum_cy = []
     cy_loc = []
-    cou= 0
+    cou= 1
     for i in np.unique(eddy_cy['track']):
         #print(i)
         if os.path.exists(output_loc_cy+'/'+str(i)+'.nc') == True:
@@ -518,6 +733,7 @@ if plot_figure_5:
     lab= 'Change in eddy CO${_2}$ flux compared \nto the surrounding water CO${_2}$ flux (%)'
     ax[0].text(0.92,1.06,f'({let[0]})',transform=ax[0].transAxes,va='top',fontweight='bold',fontsize = 14)
     for i in locas:
+        print(cou)
         f = np.where((anti_loc == i))[0]
         f = f[np.where(np.isnan(val[f]) == 0)]
         g = np.where((cy_loc == i))[0]
@@ -771,113 +987,202 @@ if plot_figure_5_bio:
 
     fig.savefig('figs/manuscript/figure_5_bio.png',dpi=300)
 
-# fig = plt.figure(figsize=(21,15))
-# gs = GridSpec(2,3, figure=fig, wspace=0.25,hspace=0.15,bottom=0.1,top=0.93,left=0.075,right=0.95)
-# ax = [fig.add_subplot(gs[0,0:2]),fig.add_subplot(gs[0,2]),fig.add_subplot(gs[1,0:2]),fig.add_subplot(gs[1,2])]
-# m = eplt.base_tracks_start(ax[0],latb=[-80,80],lonb = [-180,180])
-# m2 = eplt.base_tracks_start(ax[2],latb=[-80,80],lonb = [-180,180])
-# val = []
-# cum = []
-# #print(np.unique(eddy_v['track']))
-#
-# for i in  np.unique(eddy_v['track']):
-#     print(i)
-#     if os.path.exists(output_loc+'/'+str(i)+'.nc') == True:
-#         c = Dataset(output_loc+'/'+str(i)+'.nc','r')
-#         #c = Dataset(i,'r')
-#         time = np.array(c['month_time'])
-#         time2 = []
-#         for j in range(len(time)):
-#             time2.append(pyEddy_m.date_con(int(time[j])))
-#         if time2[0].year >=1993:
-#             co2 = np.array(c['flux_in_bio_areaday_cumulative'])
-#             co2_o = np.array(c['flux_out_bio_areaday_cumulative'])
-#             co2_unc = np.array(c['flux_unc_tot_in_bio_areaday_cumulative'])/2
-#             #co2_o_unc = np.array(c['flux_unc_total_out_areaday_cumulative'])
-#             lat = np.array(c['latitude'])
-#             lon = np.array(c['longitude'])
-#             x,y = m(lon,lat)
-#
-#
-#             co2_p = (co2-co2_o)/np.abs(co2_o)
-#             if np.isnan(co2[-1]-co2_o[-1]) == 0:
-#                 print(co2_p[-1]*100)
-#                 print(co2[-1])
-#                 print(co2_o[-1])
-#                 print(co2[-1]-co2_o[-1])
-#                 cum.append(co2[-1]-co2_o[-1])
-#                 val.append(co2_p[-1]*100)
-#                 if np.sign(co2_p[-1]) == 1:
-#                     col = '#D41159'
-#                 else:
-#                     col = '#1A85FF'
-#
-#                 # p = ax[0,1].plot(time2,co2,col)
-#
-#                 # ax[0,0].scatter(x,y,s=1,color=col)
-#                 # ax[0,1].fill_between(time2,co2-co2_unc,co2+co2_unc,color=col,alpha=0.4)
-#                 ax[0].scatter(x[0],y[0],s=3,color=col)
-#         c.close()
-#         if i == 40:
-#             break
-# val = np.array(val)
-# cum = np.array(cum)
-# eplt.base_tracks_end(ax[0],m)
-# # eplt.base_tracks_end(ax[1,1],m2)
-# # ax[0,1].set_ylim([-4,4])
-# # ax[0,1].set_ylabel('Net Eddy CO${_2}$ flux (Tg C)')
-# # ax[0,1].set_xlabel('Year')
-# print(val)
-# print(np.nanmedian(val))
-# print(np.nansum(cum))
-# print(np.nanmedian(cum))
-# ax[1].boxplot(val[np.isnan(val) == False])
-# ax[1].plot([0.5,1.5],[0,0])
-# ax[1].set_ylim([-40,40])
-# #ax.set_title('N='+str(len(g)))
-# ax[1].set_ylabel('Change in eddy CO${_2}$ flux \n compared to the surrounding \n water CO${_2}$ flux (%)')
-# ax[1].set_xticks(ticks=[1],labels =['(N = '+str(len(val[np.isnan(val) == False])) + ')'])
-# #ax[1,0].set_xticks(ticks=[1],labels =['(N = '+str(len(g)) + ')'])
-# # fig.tight_layout()
-#
-# for i in range(4):
-#     #worldmap.plot(color="lightgrey", ax=ax[i])
-#     ax[i].text(0.92,1.06,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
-# fig.savefig('figs/anti_new_global_eddy_flux.png',dpi=300)
 
-# """
-# """
-# fig2,ax = plt.subplots(1,1, figsize=(16, 6))
-#
-# for i in np.unique(eddy_v['track']):
-#     print(i)
-#     c = Dataset(output_loc+'/'+str(i)+'.nc','r')
-#     #c = Dataset(i,'r')
-#     time = np.array(c['month_time'])
-#     time2 = []
-#     for j in range(len(time)):
-#         time2.append(pyEddy_m.date_con(int(time[j])))
-#     if time2[0].year >=1998:
-#         co2 = np.array(c['flux_in_areaday_cumulative'])
-#         co2_o = np.array(c['flux_out_areaday_cumulative'])
-#         co2_unc = np.array(c['flux_unc_tot_in_areaday_cumulative'])
-#         #co2_o_unc = np.array(c['flux_unc_total_out_areaday_cumulative'])
-#         lat = np.array(c['latitude'])
-#         lon = np.array(c['longitude'])
-#         #x,y = m(lon,lat)
-#
-#
-#         co2_p = (co2-co2_o)/co2_o
-#         #val.append(co2_p[-1]*100)
-#         col = 'k'
-#         p = ax.plot(time2,co2,col)
-#
-#
-#         #ax.plot(x,y,color=a)
-#         #ax.fill_between(time2,co2-co2_unc,co2+co2_unc,color=col,alpha=0.4)
-#     c.close()
-# ax.set_ylim([-4,4])
-# ax.set_ylabel('Net Eddy CO${_2}$ flux (Tg C)')
-# ax.set_xlabel('Year')
-# fig2.savefig('figs/anti_global_eddy_flux_test_netfluxexpand.png',dpi=300)
-#
+def unc_prop_sum(inps,ens = 1000):
+    out = []
+    for i in range(ens):
+        in_flux = inps[:,0] + (inps[:,1] * np.random.normal(0, 0.5, len(inps[:,1])))
+        out_flux = inps[:,2] + (inps[:,3] * np.random.normal(0, 0.5, len(inps[:,3])))
+        out.append(np.nansum(in_flux-out_flux))
+    out = np.array(out)
+    print(f'Mean = {np.mean(out)}')
+    print(f'Median = {np.median(out)}')
+    print(f'2 standard dev = {np.std(out)*2}')
+    return [np.mean(out),np.median(out),np.std(out)*2]
+
+if estimate_cumulative:
+
+    recaap_file = 'data/RECCAP2_region_masks_all_v20221025.nc'
+    # loading the RECAAP ocean definitons
+    c = Dataset(recaap_file,'r')
+    rec_lon = np.array(c['lon'])-180
+    rec_lat = np.array(c['lat'])
+    long,latg = np.meshgrid(rec_lon,rec_lat)
+    oceans = np.array(c['open_ocean'])
+    oceans2 = np.zeros((oceans.shape))
+    oceans2[:,180:] = oceans[:,0:180]
+    oceans2[:,0:180] = oceans[:,180:]
+    print(oceans.shape)
+    oceans2[oceans2==0] = np.nan
+    for i in range(1,4):
+        f = np.where((oceans2 == i) & (latg <0))
+        oceans2[f] = i+0.5
+    oceans2[oceans2 ==4] = np.nan
+    oceans2[oceans2 == 3] = np.nan
+    oceans2[oceans2 == 5] = 4
+    c.close()
+    """
+    Anticyclonic Eddies
+    """
+
+    val= []
+    unc_cal = []
+    cum = []
+    anti_loc = []
+    cou = 0
+    for i in  np.unique(eddy_an['track']):
+        #print(i)
+        if os.path.exists(output_loc+'/'+str(i)+'.nc') == True:
+            c = Dataset(output_loc+'/'+str(i)+'.nc','r')
+            #c = Dataset(i,'r')
+            time = np.array(c['month_time'])
+            time2 = []
+            for j in range(len(time)):
+                time2.append(pyEddy_m.date_con(int(time[j])))
+
+            co2 = np.array(c['flux_in_physics_areaday_cumulative'])
+            co2_unc = np.array(c['flux_unc_tot_in_physics_areaday_cumulative'])
+            co2_o = np.array(c['flux_out_physics_areaday_cumulative'])
+            co2_o_unc = np.array(c['flux_unc_tot_out_physics_areaday_cumulative'])
+            co2_p = ((co2-co2_o)/np.abs(co2_o))*100
+
+            cum.append((co2-co2_o)[-1])
+            unc_cal.append([co2[-1],co2_unc[-1],co2_o[-1],co2_o_unc[-1]])
+            val.append(co2_p[-1])
+            lat = np.array(c['month_latitude'])
+            lon = np.array(c['month_longitude'])
+
+            f = np.where(np.abs(lat[0] - rec_lat) == np.min(np.abs(lat[0] - rec_lat)))[0]
+            g = np.where(np.abs(lon[0] - rec_lon) == np.min(np.abs(lon[0] - rec_lon)))[0]
+            anti_loc.append(oceans2[f,g])
+            #print(oceans2[f,g])
+            c.close()
+            # cou= cou+1
+            # if cou == 60:
+            #     break
+    anti_loc = np.array(anti_loc)
+    unc_cal = np.array(unc_cal)
+    val = np.array(val)
+
+    val_cy = []
+    unc_cal_cy = []
+    cum_cy = []
+    cy_loc = []
+    cou= 0
+    for i in np.unique(eddy_cy['track']):
+        #print(i)
+        if os.path.exists(output_loc_cy+'/'+str(i)+'.nc') == True:
+            c = Dataset(output_loc_cy+'/'+str(i)+'.nc','r')
+            #c = Dataset(i,'r')
+            time = np.array(c['month_time'])
+            time2 = []
+            for j in range(len(time)):
+                time2.append(pyEddy_m.date_con(int(time[j])))
+
+            co2 = np.array(c['flux_in_physics_areaday_cumulative'])
+            co2_unc = np.array(c['flux_unc_tot_in_physics_areaday_cumulative'])
+            co2_o = np.array(c['flux_out_physics_areaday_cumulative'])
+            co2_o_unc = np.array(c['flux_unc_tot_out_physics_areaday_cumulative'])
+            co2_p = ((co2-co2_o)/np.abs(co2_o))*100
+
+            cum_cy.append((co2-co2_o)[-1])
+            unc_cal_cy.append([co2[-1],co2_unc[-1],co2_o[-1],co2_o_unc[-1]])
+            val_cy.append(co2_p[-1])
+            f = np.where(np.abs(lat[0] - rec_lat) == np.min(np.abs(lat[0] - rec_lat)))[0]
+            g = np.where(np.abs(lon[0] - rec_lon) == np.min(np.abs(lon[0] - rec_lon)))[0]
+            cy_loc.append(oceans2[f,g])
+            c.close()
+    cy_loc = np.array(cy_loc)
+    unc_cal_cy = np.array(unc_cal_cy)
+    val_cy = np.array(val_cy)
+
+    print(unc_prop_sum(unc_cal))
+    print(unc_prop_sum(unc_cal_cy))
+    print(unc_prop_sum(np.concatenate((unc_cal,unc_cal_cy))))
+
+def scatter_socat_data(file,ax,c=[200,600],unc = False,text=True,lab='Neural network fCO$_{2 (sw)}$ ($\mu$atm)'):
+    c = np.array(c)
+    data = np.loadtxt(file,delimiter=',',skiprows=1)
+    ax.scatter(data[:,4], data[:,5],s=4)
+    if unc:
+        ax.scatter(data[:,4], data[:,5],s=4,color='r',zorder=2)
+        ax.errorbar(data[:,4],data[:,5],yerr=data[:,6],color='tab:blue',linestyle='None',zorder=1)
+    ax.plot(np.array(c),np.array(c),'k-')
+    ax.set_xlim(c)
+    ax.set_ylim(c)
+    ax.set_xlabel('SOCAT fCO$_{2 (sw)}$ ($\mu$atm)')
+    ax.set_ylabel(lab)
+    stats = unweight(data[:,4], data[:,5],ax,c=c,text=text)
+    #ax.plot(c,c*stats[1]+stats[2],'k--')
+    weighted(data[:,4], data[:,5],1/data[:,6],ax,c=c,text=text)
+
+def unweight(x,y,ax,c,unit = '$\mu$atm',plot=False,loc = [0.58,0.35],text = True):
+    """
+    Function to calculate the unweighted statistics and add them to a scatter plot (well any plot really, in the bottom right corner)
+    """
+    stats_un = ws.unweighted_stats(x,y,'val')
+    if plot:
+        h2 = ax.plot(c,c*stats_un['slope']+stats_un['intercept'],'k--',zorder=5, label = 'Unweighted')
+    rmsd = '%.2f' %np.round(stats_un['rmsd'],2)
+    bias = '%.2f' %np.round(stats_un['rel_bias'],2)
+    sl = '%.2f' %np.round(stats_un['slope'],2)
+    ip = '%.2f' %np.round(stats_un['intercept'],2)
+    n = stats_un['n']
+    if text:
+        ax.text(loc[0],loc[1],f'Unweighted Stats\nRMSD = {rmsd} {unit}\nBias = {bias} {unit}\nSlope = {sl}\nIntercept = {ip}\nN = {n}',transform=ax.transAxes,va='top')
+    return [stats_un['rmsd'],stats_un['slope'],stats_un['intercept']]
+
+def weighted(x,y,weights,ax,c,unit = '$\mu$atm',plot=True,text=True):
+    """
+    Function to calculate the weighted statistics and add them to a scatter plot (well any plot really, in the top left corner)
+    """
+    #weights = 1/(np.sqrt(y_test_all[:,1]**2 + y_test_preds_all[:,1]**2))
+    stats = ws.weighted_stats(x,y,weights,'val')
+    if plot:
+        h1 = ax.plot(c,c*stats['slope']+stats['intercept'],'k--',zorder=5, label = 'Weighted')
+    rmsd = '%.2f' % np.round(stats['rmsd'],2)
+    bias = '%.2f' %np.round(stats['rel_bias'],2)
+    sl = '%.2f' %np.round(stats['slope'],2)
+    ip = '%.2f' %np.round(stats['intercept'],2)
+    n = stats['n']
+    if text:
+        ax.text(0.02,0.95,f'Weighted Stats\nRMSD = {rmsd} {unit}\nBias = {bias} {unit}\nSlope = {sl}\nIntercept = {ip}\nN = {n}',transform=ax.transAxes,va='top')
+    return h1
+
+if plot_figure_socat:
+
+    anti_file = 'data/fco2_out.csv'
+    cy_file = 'data/fco2_out_cy.csv'
+    font = {'weight' : 'normal',
+            'size'   :20}
+    matplotlib.rc('font', **font)
+    fig = plt.figure(figsize=(20,14))
+    gs = GridSpec(2,2, figure=fig, wspace=0.25,hspace=0.15,bottom=0.1,top=0.95,left=0.1,right=0.95)
+    ax = [fig.add_subplot(gs[0,0]), fig.add_subplot(gs[0,1]),fig.add_subplot(gs[1,0]),fig.add_subplot(gs[1,1])]
+
+    scatter_socat_data(anti_file,ax[0])
+    scatter_socat_data(cy_file,ax[2])
+    scatter_socat_data(anti_file,ax[1],unc=True,text=False)
+    scatter_socat_data(cy_file,ax[3],unc=True,text=False)
+    for i in range(4):
+        ax[i].text(0.90,0.96,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
+    fig.savefig('figs/manuscript/socat_figure.png',dpi=300)
+
+if plot_figure_socat_bio:
+
+    anti_file = 'data/fco2_out_bio.csv'
+    cy_file = 'data/fco2_out_bio_cy.csv'
+    font = {'weight' : 'normal',
+            'size'   :20}
+    matplotlib.rc('font', **font)
+    fig = plt.figure(figsize=(20,14))
+    gs = GridSpec(2,2, figure=fig, wspace=0.25,hspace=0.15,bottom=0.1,top=0.95,left=0.1,right=0.95)
+    ax = [fig.add_subplot(gs[0,0]), fig.add_subplot(gs[0,1]),fig.add_subplot(gs[1,0]),fig.add_subplot(gs[1,1])]
+
+    scatter_socat_data(anti_file,ax[0],lab = 'Neural network fCO$_{2 (sw)}$ ($\mu$atm)')
+    scatter_socat_data(cy_file,ax[2],lab = 'Neural network fCO$_{2 (sw)}$ ($\mu$atm)')
+    scatter_socat_data(anti_file,ax[1],unc=True,text=False, lab = 'Neural network fCO$_{2 (sw)}$ ($\mu$atm)')
+    scatter_socat_data(cy_file,ax[3],unc=True,text=False, lab = 'Neural network fCO$_{2 (sw)}$ ($\mu$atm)')
+    for i in range(4):
+        ax[i].text(0.90,0.96,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
+    fig.savefig('figs/manuscript/socat_figure_bio.png',dpi=300)

@@ -11,14 +11,15 @@ def base_tracks_start(ax,latb,lonb):
                 llcrnrlon=lonb[0],urcrnrlon=lonb[1],lat_ts=20,resolution='l',ax=ax)
     return m
 
-def base_tracks_end(ax,m):
+def base_tracks_end(ax,m,draw_parrells = True):
     m.drawmapboundary(fill_color='#99ffff')
     m.fillcontinents(color='#C2c3c3')
     m.drawcoastlines()
     parallels = np.arange(-90.,91,45.)
     meridion = np.arange(-180,181,60.)
-    m.drawparallels(parallels,labels=[True,False,False,False])
-    m.drawmeridians(meridion,labels=[False,False,False,True])
+    if draw_parrells:
+        m.drawparallels(parallels,labels=[True,False,False,False])
+        m.drawmeridians(meridion,labels=[False,False,False,True])
 
 def base_tracks_plt(ax,eddy,m):
     f = np.unique(eddy['track'])
