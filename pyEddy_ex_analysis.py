@@ -29,7 +29,7 @@ cycl_file = 'F:/Data/AVISO_EDDIES/META3.2_DT_allsat_Cyclonic_long_19930101_20220
 
 """
 """
-load = True
+load = False
 if load:
     # Loading the eddy netcdf data into a dictionary that corresponds to the netcdf file variable names.
     # This will not load anything that is defined in "no_load". If you want to load all variables leave
@@ -65,14 +65,14 @@ if load:
 let = ['a','b','c','d','e','f','g']
 # # g = glob.glob(os.path.join(output_loc,'*.nc'))
 # # #g = np.unique(eddy_v['track'])#
-plot_figure_1 = False
+plot_figure_1 = True
 plot_figure_2 = False
 plot_figure_3 = False
 plot_figure_4 =False
 plot_figure_4_bio = False
 plot_figure_5 = False
 plot_figure_5_bio = False
-estimate_cumulative =True
+estimate_cumulative =False
 plot_figure_socat = False
 plot_figure_socat_bio = False
 
@@ -161,6 +161,7 @@ if plot_figure_1:
     ax[3].fill_between(time_mon,fco2-fco2_unc,fco2+fco2_unc,alpha=0.4,color='k')
     ax[3].plot(time_mon,xco2,'k--')
     ax[3].set_ylabel('fCO$_{2 (sw)}$ or xCO$_{2 (atm)}$ ($\mu$atm or ppm)')
+    ax[3].set_ylim([200,550])
     fco2 = np.array(c['flux_in_physics'])
     fco2_unc = np.array(c['flux_unc_in_physics'])*np.abs(fco2)
 
@@ -168,7 +169,7 @@ if plot_figure_1:
     ax[4].fill_between(time_mon,fco2-fco2_unc/2,fco2+fco2_unc/2,alpha=0.6,color='k')
     ax[4].fill_between(time_mon,fco2-fco2_unc,fco2+fco2_unc,alpha=0.4,color='k')
     ax[4].plot([time_da[0],time_da[-1]],[0,0],'k--')
-    ax[4].set_ylim([-0.5,0.5])
+    ax[4].set_ylim([-0.6,0.6])
     ax[4].set_ylabel('Air-sea CO$_2$ flux (g C m$^{-2}$ d$^{-1}$)\n(-ve indicates atmosphere to ocean exchange)')
 
     fco2 = np.array(c['flux_in_physics_areaday_cumulative'])
