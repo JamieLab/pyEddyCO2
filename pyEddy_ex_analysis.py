@@ -65,7 +65,7 @@ if load:
 let = ['a','b','c','d','e','f','g']
 # # g = glob.glob(os.path.join(output_loc,'*.nc'))
 # # #g = np.unique(eddy_v['track'])#
-plot_figure_1 = True
+plot_figure_1 = False
 plot_figure_2 = False
 plot_figure_3 = False
 plot_figure_4 =False
@@ -73,7 +73,7 @@ plot_figure_4_bio = False
 plot_figure_5 = False
 plot_figure_5_bio = False
 estimate_cumulative =False
-plot_figure_socat = False
+plot_figure_socat = True
 plot_figure_socat_bio = False
 
 """
@@ -1117,6 +1117,13 @@ def scatter_socat_data(file,ax,c=[200,600],unc = False,text=True,lab='Neural net
     #ax.plot(c,c*stats[1]+stats[2],'k--')
     weighted(data[:,4], data[:,5],1/data[:,6],ax,c=c,text=text)
 
+def residual_spatial_plot(file,ax,c=[-40,40],lab=''):
+    c = np.array(c)
+    data = np.loadtxt(file,delimiter=',',skiprows=1)
+    m = eplt.base_tracks_start(ax,latb=[-70,70],lonb = [-180,180])
+    x,y = m(data[:,3],data[:,2])
+    ax.scatter(x,y,c=data[:,4]-data[:,5],cmap = cmocean.cm.balance,vmin=c[0],vmax=c[1])
+    eplt.base_tracks_end(ax,m)
 def unweight(x,y,ax,c,unit = '$\mu$atm',plot=False,loc = [0.58,0.35],text = True):
     """
     Function to calculate the unweighted statistics and add them to a scatter plot (well any plot really, in the bottom right corner)
@@ -1168,6 +1175,26 @@ if plot_figure_socat:
     for i in range(4):
         ax[i].text(0.90,0.96,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
     fig.savefig('figs/manuscript/socat_figure.png',dpi=300)
+
+    anti_file = 'data/fco2_out.csv'
+    cy_file = 'data/fco2_out_cy.csv'
+    font = {'weight' : 'normal',
+            'size'   :20}
+    matplotlib.rc('font', **font)
+    fig = plt.figure(figsize=(34,14))
+    gs = GridSpec(2,4, figure=fig, wspace=0.25,hspace=0.15,bottom=0.1,top=0.95,left=0.1,right=0.95)
+    ax = [fig.add_subplot(gs[0,0]), fig.add_subplot(gs[0,1]),fig.add_subplot(gs[0,2:4]),fig.add_subplot(gs[1,0]),fig.add_subplot(gs[1,1]),fig.add_subplot(gs[1,2:4])]
+
+    scatter_socat_data(anti_file,ax[0])
+    scatter_socat_data(cy_file,ax[3])
+    scatter_socat_data(anti_file,ax[1],unc=True,text=False)
+    scatter_socat_data(cy_file,ax[4],unc=True,text=False)
+    residual_spatial_plot(anti_file,ax[2])
+    residual_spatial_plot(cy_file,ax[5])
+    for i in range(6):
+        ax[i].text(0.90,0.96,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
+    fig.savefig('figs/manuscript/socat_figure_extra.png',dpi=300)
+
 
 if plot_figure_socat_bio:
 

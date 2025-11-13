@@ -170,13 +170,24 @@ eddy_v = pyEddy_m.box_split(eddy_v,[-80,80],[-180,180],[datetime.datetime(1993,1
 #eddy_v = pyEddy_m.box_split(eddy_v,[-35,-15],[5,25],[datetime.datetime(2000,1,1),datetime.datetime(2018,12,31)])
 print(len(np.unique(eddy_v['track'])))
 
-eddy_v = pyEddy_m.eddy_length_min(eddy_v,90)
+eddy_v = pyEddy_m.eddy_length_min(eddy_v,365)
 print(len(np.unique(eddy_v['track'])))
 
-# eddy_v = pyEddy_m.eddy_cross_lon_lat(eddy_v,0)
-# print(len(np.unique(eddy_v['track'])))
+eddy_v2 = pyEddy_m.eddy_cross_lon_lat(eddy_v,0,west=False)
+eddy_v3 = pyEddy_m.eddy_cross_lon_lat(eddy_v,0)
+print(len(np.unique(eddy_v2['track'])))
+print(np.unique(eddy_v2['track']))
+print(len(np.unique(eddy_v3['track'])))
+print(np.unique(eddy_v3['track']))
+for i in np.unique(eddy_v2['track']):
+    os.remove(os.path.join(output_loc,str(i)+'.nc'))
+    print(os.path.join(output_loc,str(i)+'.nc') + ' Removed...')
+
+for i in np.unique(eddy_v3['track']):
+    os.remove(os.path.join(output_loc,str(i)+'.nc'))
+    print(os.path.join(output_loc,str(i)+'.nc') + ' Removed...')
 # analysis(eddy_v,desc,output_loc)
-analysis_update(eddy_v,desc,output_loc)
+# analysis_update(eddy_v,desc,output_loc)
 # calc_anomalies(output_loc,eddy_v,fluxengine_loc,fluxengine_input_file,config_file = config_file)
 # """
 # Running the cyclonic eddies...

@@ -30,41 +30,58 @@ def add_socat(file,socat_data,socat_file,rean = True):
 
     fco2_out = np.zeros((len(time),9)); fco2_out[:] = np.nan
     for i in range(len(time)):
+        print(i)
         date = (datetime.datetime(1950,1,1) + datetime.timedelta(days=int(time[i])))
         day = date.day
         mon = date.month
         yr = date.year
 
+        lonc = lon[i]
+        latc = lat[i]
         lons = con_lon[i,:]
         lats = con_lat[i,:]
+        if (lats[0] != 0.0) & (lons[0] != 180.0):
 
-        f = np.where((socat_data['yr'] == yr) & (socat_data['mon'] == mon) & (socat_data['day'] == day))[0]
-        #print(f)
-        if len(f)>0:
-            path = mpltPath.Path(np.transpose([lons,lats]))
-            l = np.transpose([np.array(socat_data['longitude [dec.deg.E]'][f]),np.array(socat_data['latitude [dec.deg.N]'][f])])
-            #print(l)
-            inp = path.contains_points(l)
-            #print(inp)
-            g = np.where(inp == True)[0]
-            if len(g) > 0:
-                print('Yes')
-                if rean == False:
-                    fco2 = socat_data['fCO2rec [uatm]'][f[g]]
-                    sst = socat_data['SST [deg C]'][f[g]]
+            f = np.where((socat_data['yr'] == yr) & (socat_data['mon'] == mon) & (socat_data['day'] == day))[0]
+            #print(f)
+            if len(f)>0:
+                radmax = Edeobs.radius_check(lonc,latc,lons,lats)
+                if (lonc - (radmax*2) < -180) or (lonc + (radmax*2) > 180):
+                    print('Near the dateline')
+
+                    path = mpltPath.Path(np.transpose([lons,lats]))
+
+                    lon_socat_temp = np.array(socat_data['longitude [dec.deg.E]'][f])
+                    h = np.where(np.sign(lon_socat_temp) != np.sign(lonc))
+                    lon_socat_temp[h] = lon_socat_temp[h] + (360 * np.sign(lonc))
+                    l = np.transpose([lon_socat_temp,np.array(socat_data['latitude [dec.deg.N]'][f])])
                 else:
-                    fco2 = socat_data['fCO2_reanalysed [uatm]'][f[g]]
-                    sst = socat_data['T_subskin [C]'][f[g]]
-                sal = socat_data['sal'][f[g]]
-                fco2_out[i,0] = np.nanmean(fco2)
-                fco2_out[i,1] = np.nanstd(fco2)
-                fco2_out[i,2] = len(np.where(np.isnan(fco2)==0)[0])
-                fco2_out[i,3] = np.nanmean(sst)
-                fco2_out[i,4] = np.nanstd(sst)
-                fco2_out[i,5] = len(np.where(np.isnan(sst)==0)[0])
-                fco2_out[i,6] = np.nanmean(sal)
-                fco2_out[i,7] = np.nanstd(sal)
-                fco2_out[i,8] = len(np.where(np.isnan(sal)==0)[0])
+                    path = mpltPath.Path(np.transpose([lons,lats]))
+                    l = np.transpose([np.array(socat_data['longitude [dec.deg.E]'][f]),np.array(socat_data['latitude [dec.deg.N]'][f])])
+                #print(l)
+                inp = path.contains_points(l)
+                #print(inp)
+                g = np.where(inp == True)[0]
+                if len(g) > 0:
+                    print('Yes')
+                    if rean == False:
+                        fco2 = socat_data['fCO2rec [uatm]'][f[g]]
+                        sst = socat_data['SST [deg C]'][f[g]]
+                    else:
+                        fco2 = socat_data['fCO2_reanalysed [uatm]'][f[g]]
+                        sst = socat_data['T_subskin [C]'][f[g]]
+                    sal = socat_data['sal'][f[g]]
+                    fco2_out[i,0] = np.nanmean(fco2)
+                    fco2_out[i,1] = np.nanstd(fco2)
+                    fco2_out[i,2] = len(np.where(np.isnan(fco2)==0)[0])
+                    fco2_out[i,3] = np.nanmean(sst)
+                    fco2_out[i,4] = np.nanstd(sst)
+                    fco2_out[i,5] = len(np.where(np.isnan(sst)==0)[0])
+                    fco2_out[i,6] = np.nanmean(sal)
+                    fco2_out[i,7] = np.nanstd(sal)
+                    fco2_out[i,8] = len(np.where(np.isnan(sal)==0)[0])
+            else:
+                print('Broken eddy polygon...')
     if rean:
         rean = 'True'
     else:
@@ -194,60 +211,60 @@ for file in files:
     add_socat(file,socat_data,socat_file)
     Edeobs.produce_monthly(int(file_s[0]),loc,vars=['socat_mean_fco2','socat_mean_sst','socat_mean_sal'],average = 'mean')
 
-t = 0
-for file in files:
-    print(file)
-    c = Dataset(file,'r')
-    socat_fco2 = np.array(c['month_socat_mean_fco2'])
-    f = np.where(np.isnan(socat_fco2) == 0)[0]
-    if len(f) > 0:
-        nn_fco2 = np.array(c['month_fco2_sw_in_physics'])
-        unc = np.array(c['month_fco2_tot_unc_in_physics'])
-        time = np.array(c['month_time'])
-        lat = np.array(c['month_latitude'])
-        lon = np.array(c['month_longitude'])
-        yr = []; mon =[]; day = [];
-        for i in range(len(time)):
-            date = (datetime.datetime(1950,1,1) + datetime.timedelta(days=int(time[i])))
-            mon.append(date.month)
-            yr.append(date.year)
-        yr = np.array(yr); mon = np.array(mon);
-        if t == 0:
-            out = np.array([yr[f],mon[f],lat[f],lon[f],socat_fco2[f],nn_fco2[f],unc[f]])
-            if out.shape[0] > out.shape[1]:
-                out=np.transpose(out)
-            t=1
-        else:
-            out = np.concatenate((out,np.transpose(np.array([yr[f],mon[f],lat[f],lon[f],socat_fco2[f],nn_fco2[f],unc[f]]))),axis=0)
-        print(out.shape)
-    c.close()
-np.savetxt('data/fco2_out_cy.csv',out,delimiter=',',header='Year,Month,Latitude (deg N),Longitude (Deg E),SOCAT fCO2sw (uatm),UExP-FNN-U fCO2sw (uatm),UExP-FNN-U fCO2sw unc (uatm)')
-
-t = 0
-for file in files:
-    print(file)
-    c = Dataset(file,'r')
-    socat_fco2 = np.array(c['month_socat_mean_fco2'])
-    f = np.where(np.isnan(socat_fco2) == 0)[0]
-    if len(f) > 0:
-        nn_fco2 = np.array(c['month_fco2_sw_in_bio'])
-        unc = np.array(c['month_fco2_tot_unc_in_bio'])
-        time = np.array(c['month_time'])
-        lat = np.array(c['month_latitude'])
-        lon = np.array(c['month_longitude'])
-        yr = []; mon =[]; day = [];
-        for i in range(len(time)):
-            date = (datetime.datetime(1950,1,1) + datetime.timedelta(days=int(time[i])))
-            mon.append(date.month)
-            yr.append(date.year)
-        yr = np.array(yr); mon = np.array(mon);
-        if t == 0:
-            out = np.array([yr[f],mon[f],lat[f],lon[f],socat_fco2[f],nn_fco2[f],unc[f]])
-            if out.shape[0] > out.shape[1]:
-                out=np.transpose(out)
-            t=1
-        else:
-            out = np.concatenate((out,np.transpose(np.array([yr[f],mon[f],lat[f],lon[f],socat_fco2[f],nn_fco2[f],unc[f]]))),axis=0)
-        print(out.shape)
-    c.close()
-np.savetxt('data/fco2_out_bio_cy.csv',out,delimiter=',',header='Year,Month,Latitude (deg N),Longitude (Deg E),SOCAT fCO2sw (uatm),UExP-FNN-U fCO2sw (uatm),UExP-FNN-U fCO2sw unc (uatm)')
+# t = 0
+# for file in files:
+#     print(file)
+#     c = Dataset(file,'r')
+#     socat_fco2 = np.array(c['month_socat_mean_fco2'])
+#     f = np.where(np.isnan(socat_fco2) == 0)[0]
+#     if len(f) > 0:
+#         nn_fco2 = np.array(c['month_fco2_sw_in_physics'])
+#         unc = np.array(c['month_fco2_tot_unc_in_physics'])
+#         time = np.array(c['month_time'])
+#         lat = np.array(c['month_latitude'])
+#         lon = np.array(c['month_longitude'])
+#         yr = []; mon =[]; day = [];
+#         for i in range(len(time)):
+#             date = (datetime.datetime(1950,1,1) + datetime.timedelta(days=int(time[i])))
+#             mon.append(date.month)
+#             yr.append(date.year)
+#         yr = np.array(yr); mon = np.array(mon);
+#         if t == 0:
+#             out = np.array([yr[f],mon[f],lat[f],lon[f],socat_fco2[f],nn_fco2[f],unc[f]])
+#             if out.shape[0] > out.shape[1]:
+#                 out=np.transpose(out)
+#             t=1
+#         else:
+#             out = np.concatenate((out,np.transpose(np.array([yr[f],mon[f],lat[f],lon[f],socat_fco2[f],nn_fco2[f],unc[f]]))),axis=0)
+#         print(out.shape)
+#     c.close()
+# np.savetxt('data/fco2_out_cy.csv',out,delimiter=',',header='Year,Month,Latitude (deg N),Longitude (Deg E),SOCAT fCO2sw (uatm),UExP-FNN-U fCO2sw (uatm),UExP-FNN-U fCO2sw unc (uatm)')
+#
+# t = 0
+# for file in files:
+#     print(file)
+#     c = Dataset(file,'r')
+#     socat_fco2 = np.array(c['month_socat_mean_fco2'])
+#     f = np.where(np.isnan(socat_fco2) == 0)[0]
+#     if len(f) > 0:
+#         nn_fco2 = np.array(c['month_fco2_sw_in_bio'])
+#         unc = np.array(c['month_fco2_tot_unc_in_bio'])
+#         time = np.array(c['month_time'])
+#         lat = np.array(c['month_latitude'])
+#         lon = np.array(c['month_longitude'])
+#         yr = []; mon =[]; day = [];
+#         for i in range(len(time)):
+#             date = (datetime.datetime(1950,1,1) + datetime.timedelta(days=int(time[i])))
+#             mon.append(date.month)
+#             yr.append(date.year)
+#         yr = np.array(yr); mon = np.array(mon);
+#         if t == 0:
+#             out = np.array([yr[f],mon[f],lat[f],lon[f],socat_fco2[f],nn_fco2[f],unc[f]])
+#             if out.shape[0] > out.shape[1]:
+#                 out=np.transpose(out)
+#             t=1
+#         else:
+#             out = np.concatenate((out,np.transpose(np.array([yr[f],mon[f],lat[f],lon[f],socat_fco2[f],nn_fco2[f],unc[f]]))),axis=0)
+#         print(out.shape)
+#     c.close()
+# np.savetxt('data/fco2_out_bio_cy.csv',out,delimiter=',',header='Year,Month,Latitude (deg N),Longitude (Deg E),SOCAT fCO2sw (uatm),UExP-FNN-U fCO2sw (uatm),UExP-FNN-U fCO2sw unc (uatm)')

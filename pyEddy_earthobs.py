@@ -66,9 +66,12 @@ def radius_check(lonc,latc,lons,lats):
     if np.all(np.sign(lonc) == np.sign(lons)):
         print('All same')
     else:
-        print('Over edge of grid!')
-        f = np.where(np.sign(lonc) != np.sign(lons))
-        lons[f] = lons[f] + (360 * np.sign(lonc))
+        if (lonc < -175) or (lonc > 175):
+            # print('Near edge of grid!')
+            f = np.where(np.sign(lonc) != np.sign(lons))
+
+            print('On edge of grid!')
+            lons[f] = lons[f] + (360 * np.sign(lonc))
 
     x = np.max(np.abs(lonc-lons))
     y = np.max(np.abs(latc-lats))

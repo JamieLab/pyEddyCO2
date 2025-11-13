@@ -96,10 +96,10 @@ def eddy_cross_lon_lat(eddy, lon, longitude = True,west= True):
     for i in uni:
         f = np.where(eddy['track'] == i)[0]
         if west:
-            if eddy[var][f[-1]] < lon:
+            if (eddy[var][f[-1]] < lon) & (eddy[var][f[0]] > lon):
                 l.append(i)
         else:
-            if eddy[var][f[-1]] > lon:
+            if (eddy[var][f[-1]] > lon) & (eddy[var][f[0]] < lon):
                 l.append(i)
 
     f = np.argwhere(np.isin(eddy['track'],l) == True)
