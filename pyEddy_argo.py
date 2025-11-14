@@ -114,35 +114,46 @@ def check_argo(file,argo_data,argo_out):
 
     return argo_out
 
-file = 'F:/Data/Argo/ar_index_global_prof_12112025.txt'
-f = file.split('.')
 
-# data = load_argofile(file)
-# data = convert_time(data,temp_file = f[0]+'_DJF.txt')
-# print(data)
+"""
+Setup bits and file paths
+"""
 
+file = 'F:/Data/Argo/ar_index_global_prof_12112025.txt'# This is the path to your Argo file.
+loc = 'F:/eddy/n_anticyclonic/' #This is the directory with the eddies files
+f = file.split('.') # Here I split the file name so I can append extra bits to the file name
+
+# Comment these lines if you have already converted the times
+data = load_argofile(file)
+# This function converts the Argo date string into year, mon, day columns, and then saves a new file with these columns
+data = convert_time(data,temp_file = f[0]+'_DJF.txt')
+print(data)
+
+# Load the new generated file (I do this so we dont have to keep rerunning the date conversion).
 data = load_argofile(f[0]+'_DJF.txt',skiprows=0)
-argo_out = pd.DataFrame(columns=['argo_file','eddy_file','year','month','day','latitude','longitude','eddy_index'])
+argo_out = pd.DataFrame(columns=['argo_file','eddy_file','year','month','day','latitude','longitude','eddy_index']) # Here I setup the output pandas table
 
-loc = 'F:/eddy/n_anticyclonic/'
-files = glob.glob(loc+'6*.nc')
+
+files = glob.glob(loc+'6*.nc') # This bit of code is looking for all the eddy files that start with a '6' (so subsetting to something more manageable)
 print(files)
-files = ['F:/eddy/n_anticyclonic/322158.nc']
-# files = ['F:/eddy/n_anticyclonic/666884.nc']
+files = ['F:/eddy/n_anticyclonic/666884.nc'] # But here you can see you can also just provide files manually (example of of the South Atlantic eddy)
 
+# This loop cycles through each eddy file and runs the matching script (and then outputs all the Argo matches to the argo_out table)
 for file in files:
     print(file)
     file_s = file.split('\\')[-1].split('.')
     print(file_s)
     argo_out = check_argo(file,data,argo_out)
 
-# argo_out.to_csv('argo_matched.csv',sep=',')
+argo_out.to_csv('argo_matched.csv',sep=',') # This saves that argo_out table to a file
 
-data = load_argofile('argo_matched.csv',skiprows=0)
+data = load_argofile('argo_matched.csv',skiprows=0) # Load the argo_out table, so we dont have to run the matching again.
 print(data)
-uni = np.unique(data['eddy_file'])
+uni = np.unique(data['eddy_file']) # Looking for the unique eddies in the file
 print(uni)
 
+# Cycling through the argo_out table to find the number of argo profiles in each eddy and prints it out.
+# This finds the eddy with the most argo matches.
 t = 0
 for i in range(len(uni)):
     f = np.where(data['eddy_file'] == uni[i])[0]
@@ -151,10 +162,10 @@ for i in range(len(uni)):
         t = len(f)
         a = uni[i]
 
-a = 'F:/eddy/n_anticyclonic\\679331.nc'
 print(t)
 print(a)
 
+# Quick bit of plotting to show you the eddy track with the most argo profilers matched.
 c = Dataset(a,'r')
 lon = np.array(c['longitude'])
 lat = np.array(c['latitude'])
