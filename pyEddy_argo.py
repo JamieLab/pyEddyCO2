@@ -45,7 +45,7 @@ def convert_time(argo,headername='date',temp_file=False):
         data.to_csv(temp_file,sep=',',index = False)
     return data
 
-def check_argo(file,argo_data,argo_out):
+def check_argo(file,argo_data,argo_out,plot=False):
     """
     Function to check whether an eddy colocates with Argo profilers
     """
@@ -89,7 +89,7 @@ def check_argo(file,argo_data,argo_out):
                 #print(l)
                 inp = path.contains_points(l)
                 #print(inp)
-                if (lonc - (radmax*2) < -180) or (lonc + (radmax*2) > 180):
+                if plot:
                     plt.figure()
                     plt.scatter(lons,lats)
                     plt.scatter(lon_socat_temp,argo_data['latitude'][f])
@@ -134,16 +134,15 @@ data = load_argofile(f[0]+'_DJF.txt',skiprows=0)
 argo_out = pd.DataFrame(columns=['argo_file','eddy_file','year','month','day','latitude','longitude','eddy_index']) # Here I setup the output pandas table
 
 
-files = glob.glob(loc+'6*.nc') # This bit of code is looking for all the eddy files that start with a '6' (so subsetting to something more manageable)
-print(files)
+# files = glob.glob(loc+'6*.nc') # This bit of code is looking for all the eddy files that start with a '6' (so subsetting to something more manageable)
 files = ['F:/eddy/n_anticyclonic/666884.nc'] # But here you can see you can also just provide files manually (example of of the South Atlantic eddy)
-
+print(files)
 # This loop cycles through each eddy file and runs the matching script (and then outputs all the Argo matches to the argo_out table)
 for file in files:
     print(file)
     file_s = file.split('\\')[-1].split('.')
     print(file_s)
-    argo_out = check_argo(file,data,argo_out)
+    argo_out = check_argo(file,data,argo_out,plot=False)
 
 argo_out.to_csv('argo_matched.csv',sep=',') # This saves that argo_out table to a file
 
