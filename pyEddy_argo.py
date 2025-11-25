@@ -92,7 +92,7 @@ def check_argo(file,argo_data,argo_out,plot=False):
                 if plot:
                     plt.figure()
                     plt.scatter(lons,lats)
-                    plt.scatter(lon_socat_temp,argo_data['latitude'][f])
+                    plt.scatter(l[:,0],l[:,1])
                     plt.show()
                 g = np.where(inp == True)[0]
                 if len(g) > 0:
@@ -135,14 +135,15 @@ argo_out = pd.DataFrame(columns=['argo_file','eddy_file','year','month','day','l
 
 
 # files = glob.glob(loc+'6*.nc') # This bit of code is looking for all the eddy files that start with a '6' (so subsetting to something more manageable)
-files = ['F:/eddy/n_anticyclonic/666884.nc'] # But here you can see you can also just provide files manually (example of of the South Atlantic eddy)
+files = [os.path.join(loc,'666884.nc'] # But here you can see you can also just provide files manually (example of of the South Atlantic eddy)
+
 print(files)
 # This loop cycles through each eddy file and runs the matching script (and then outputs all the Argo matches to the argo_out table)
 for file in files:
     print(file)
     file_s = file.split('\\')[-1].split('.')
     print(file_s)
-    argo_out = check_argo(file,data,argo_out,plot=False)
+    argo_out = check_argo(file,data,argo_out,plot=True)
 
 argo_out.to_csv('argo_matched.csv',sep=',') # This saves that argo_out table to a file
 
