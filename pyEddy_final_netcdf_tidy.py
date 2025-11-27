@@ -14,15 +14,17 @@ import calendar
 import sys
 
 
-loc = 'F:/eddy/n_anticyclonic/'
+# loc = 'F:/eddy/v0-3/n_anticyclonic/'
+loc = 'F:/eddy/v0-3/n_cyclonic/'
 files = glob.glob(loc+'*.nc')
 
 for i in files:
+    print(i)
     c = Dataset(i,'a')
     c.contact = 'Daniel J. Ford (d.ford@exeter.ac.uk)'
-    c.dataset_repository_doi = '10.5281/zenodo.15689877'
+    c.dataset_repository_doi = 'https://doi.org/10.5281/zenodo.15689876'
     c.code_location = 'https://github.com/JamieLab/pyEddyCO2'
-    c.version = 'v0-1'
-    c.publication = 'Daniel J. Ford, Jamie D. Shutler, Katy L. Sheen1, Gavin H. Tilstone, and Vassilis Kitidis. UEx-Eddies: a biogeochemical long lived mesoscale eddy trajectories for studying air-sea CO2 fluxes (in prep)'
+    c.version = 'v0-3'
+    c.publication = 'Daniel J. Ford, Jamie D. Shutler, Katy L. Sheen, Gavin H. Tilstone, and Vassilis Kitidis. UEx-L-Eddies: Decadal and global long-lived mesoscale eddy trajectories with coincident air-sea CO2 fluxes and environmental conditions (in review)'
     c.eddy_trajectories = 'META3.2_DT_allsat'
     c.close()

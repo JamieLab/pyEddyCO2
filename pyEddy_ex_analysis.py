@@ -35,7 +35,7 @@ cycl_file = 'F:/Data/AVISO_EDDIES/META3.2_DT_allsat_Cyclonic_long_19930101_20220
 
 """
 """
-load = False
+load = True
 hold_all = False
 if load:
     # Loading the eddy netcdf data into a dictionary that corresponds to the netcdf file variable names.
@@ -87,9 +87,10 @@ plot_figure_5 = False
 plot_figure_5_bio = False
 plot_figure_5_compare=False
 estimate_cumulative =False
-plot_figure_socat = True
-plot_figure_socat_bio = True
+plot_figure_socat = False
+plot_figure_socat_bio = False
 decadal_stats = False
+assess_missing = True
 """
 Figure 1
 """
@@ -224,7 +225,7 @@ if plot_figure_2:
     font = {'weight' : 'normal',
             'size'   : 14}
     matplotlib.rc('font', **font)
-    fold = 'F:/eddy/n_anticyclonic'
+    fold = output_loc
 
     files = ['496.nc','194465.nc']
     fig = plt.figure(figsize=(15,15))
@@ -1592,9 +1593,9 @@ if plot_figure_socat:
     font = {'weight' : 'normal',
             'size'   :20}
     matplotlib.rc('font', **font)
-    fig = plt.figure(figsize=(18,34))
-    gs = GridSpec(4,2, figure=fig, wspace=0.25,hspace=0.25,bottom=0.05,top=0.97,left=0.13,right=0.95)
-    ax = [fig.add_subplot(gs[0,0]), fig.add_subplot(gs[0,1]),fig.add_subplot(gs[1,0]),fig.add_subplot(gs[1,1]),fig.add_subplot(gs[2,0]),fig.add_subplot(gs[2,1]),fig.add_subplot(gs[3,0]),fig.add_subplot(gs[3,1])]
+    fig = plt.figure(figsize=(34,14))
+    gs = GridSpec(2,4, figure=fig, wspace=0.35,hspace=0.2,bottom=0.05,top=0.97,left=0.07,right=0.97)
+    ax = [fig.add_subplot(gs[0,0]), fig.add_subplot(gs[0,1]),fig.add_subplot(gs[0,2]),fig.add_subplot(gs[0,3]),fig.add_subplot(gs[1,0]),fig.add_subplot(gs[1,1]),fig.add_subplot(gs[1,2]),fig.add_subplot(gs[1,3])]
 
     scatter_socat_data(anti_file,ax[0],month_split=True,months=[[12,1,2],[6,7,8]])
     scatter_socat_data(cy_file,ax[1],month_split=True,months=[[12,1,2],[6,7,8]])
@@ -1639,9 +1640,9 @@ if plot_figure_socat_bio:
     font = {'weight' : 'normal',
             'size'   :20}
     matplotlib.rc('font', **font)
-    fig = plt.figure(figsize=(18,34))
-    gs = GridSpec(4,2, figure=fig, wspace=0.25,hspace=0.25,bottom=0.05,top=0.97,left=0.13,right=0.95)
-    ax = [fig.add_subplot(gs[0,0]), fig.add_subplot(gs[0,1]),fig.add_subplot(gs[1,0]),fig.add_subplot(gs[1,1]),fig.add_subplot(gs[2,0]),fig.add_subplot(gs[2,1]),fig.add_subplot(gs[3,0]),fig.add_subplot(gs[3,1])]
+    fig = plt.figure(figsize=(34,14))
+    gs = GridSpec(2,4, figure=fig, wspace=0.35,hspace=0.2,bottom=0.05,top=0.97,left=0.07,right=0.97)
+    ax = [fig.add_subplot(gs[0,0]), fig.add_subplot(gs[0,1]),fig.add_subplot(gs[0,2]),fig.add_subplot(gs[0,3]),fig.add_subplot(gs[1,0]),fig.add_subplot(gs[1,1]),fig.add_subplot(gs[1,2]),fig.add_subplot(gs[1,3])]
 
     scatter_socat_data(anti_file,ax[0],month_split=True,months=[[12,1,2],[6,7,8]])
     scatter_socat_data(cy_file,ax[1],month_split=True,months=[[12,1,2],[6,7,8]])
@@ -1724,3 +1725,30 @@ if decadal_stats:
         out.append([timeperiods[t][0].year,timeperiods[t][1].year,med_anti,unc_anti[2],len_anti,med_cy,unc_cy[2],len_cy])
     out = np.array(out)
     np.savetxt('data/decadal.csv',out,delimiter=',')
+
+if assess_missing:
+    outs = []
+    for i in np.unique(eddy_an['track']):
+        print(i)
+        if os.path.exists(output_loc+'/'+str(i)+'.nc') == True:
+            c = Dataset(output_loc+'/'+str(i)+'.nc','r')
+            sst = np.array(c['cci_sst_in_mean'])
+            c.close()
+            f = np.where(np.isnan(sst) == 1)[0]
+            outs.append(len(f)/len(sst))
+
+    for i in  np.unique(eddy_cy['track']):
+        print(i)
+        if os.path.exists(output_loc_cy+'/'+str(i)+'.nc') == True:
+            c = Dataset(output_loc_cy+'/'+str(i)+'.nc','r')
+            sst = np.array(c['cci_sst_in_mean'])
+            c.close()
+            f = np.where(np.isnan(sst) == 1)[0]
+            outs.append(len(f)/len(sst))
+
+    outs = np.array(outs)*100
+    print(np.mean(outs))
+    print(np.median(outs))
+    print(np.max(outs))
+    print(np.min(outs))
+    print(np.std(outs))

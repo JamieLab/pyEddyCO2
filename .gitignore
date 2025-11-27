@@ -6,6 +6,15 @@
 fluxengine.log
 /figs
 /figs/*
-/data
-/data/*
 argo_matched.csv
+data/anti_percent_eddies.nc
+data/cycl_percent_eddies.nc
+data/decadal.csv
+data/v0-2/fco2_out.csv
+data/v0-2/fco2_out_bio.csv
+data/v0-2/fco2_out_bio_cy.csv
+data/v0-2/fco2_out_cy.csv
+data/v0-3/fco2_out.csv
+data/v0-3/fco2_out_bio.csv
+data/v0-3/fco2_out_bio_cy.csv
+data/v0-3/fco2_out_cy.csv
