@@ -12,6 +12,7 @@ import pyEddy_main as pyEddy_m
 import pyEddy_earthobs as Edeobs
 import calendar
 import sys
+from ftplib import FTP
 
 def load_argofile(file,skiprows=8):
     """
@@ -114,66 +115,136 @@ def check_argo(file,argo_data,argo_out,plot=False):
 
     return argo_out
 
+def makefolder(fold):
+    if not os.path.exists(fold):
+        os.makedirs(fold)
 
-"""
-Setup bits and file paths
-"""
+def checkfileexist(file):
+    #print(file)
+    g = glob.glob(file)
+    #print(g)
+    if not g:
+        return False
+    else:
+        return True
 
-file = 'F:/Data/Argo/ar_index_global_prof_12112025.txt'# This is the path to your Argo file.
-loc = 'F:/eddy/n_anticyclonic/' #This is the directory with the eddies files
-f = file.split('.') # Here I split the file name so I can append extra bits to the file name
+def argo_download(argo_loc,argo_list):
+    ftp_loc = 'ftp.ifremer.fr' # FTP Location
+    loc = '/ifremer/argo/dac' # Location within the FTP that the Argo files are
+    #Make the local argo folder
 
-# Comment these lines if you have already converted the times
-data = load_argofile(file)
-# This function converts the Argo date string into year, mon, day columns, and then saves a new file with these columns
-data = convert_time(data,temp_file = f[0]+'_DJF.txt')
-print(data)
+    makefolder(argo_loc)
+    # Load the argo profiles list
 
-# Load the new generated file (I do this so we dont have to keep rerunning the date conversion).
-data = load_argofile(f[0]+'_DJF.txt',skiprows=0)
-argo_out = pd.DataFrame(columns=['argo_file','eddy_file','year','month','day','latitude','longitude','eddy_index']) # Here I setup the output pandas table
+    for i in range(0,len(argo_list)):
+        print(str(i) + ': ' +argo_list['argo_file'].iloc[i])
+        s = argo_list['argo_file'].iloc[i].split('/')
+        makefolder(os.path.join(argo_loc,s[0]))
+        makefolder(os.path.join(argo_loc,s[0],s[1]))
+        makefolder(os.path.join(argo_loc,s[0],s[1],s[2]))
+        if (checkfileexist(os.path.join(argo_loc,argo_list['argo_file'].iloc[i])) == False) & (argo_list['argo_file'].iloc[i].split('/')[-1][0] != 'R'): # Second term to only get delayed (so corrected) files....
+            print('Downloading: ' + argo_list['argo_file'].iloc[i])
+            ftp = FTP(ftp_loc)
+            ftp.login()
+            l = argo_list['argo_file'].iloc[i].split('/')
+            #print(loc+'/'+'/'.join(l))
+            ftp.cwd(loc+'/'+'/'.join(l[0:-1]))
+            #print(l[-1])
+            ftp.retrbinary("RETR " + loc+'/'+'/'.join(l) ,open(os.path.join(argo_loc,argo_list['argo_file'].iloc[i]), 'wb').write)
+            ftp.close()
+
+if __name__ == '__main__':
+    """
+    Setup bits and file paths
+    """
+
+    file = 'F:/Data/Argo/ar_index_global_prof_12112025.txt'# This is the path to your Argo file.
+    argo_save_loc = 'F:/Data/ARGO/core_data'
+    loc = 'F:/eddy/v0-3/n_anticyclonic/' #This is the directory with the eddies files
+    f = file.split('.') # Here I split the file name so I can append extra bits to the file name
+
+    # Comment these lines if you have already converted the times
+    data = load_argofile(file)
+    # This function converts the Argo date string into year, mon, day columns, and then saves a new file with these columns
+    data = convert_time(data,temp_file = f[0]+'_DJF.txt')
+    print(data)
+
+    # Load the new generated file (I do this so we dont have to keep rerunning the date conversion).
+    data = load_argofile(f[0]+'_DJF.txt',skiprows=0)
+    argo_out = pd.DataFrame(columns=['argo_file','eddy_file','year','month','day','latitude','longitude','eddy_index']) # Here I setup the output pandas table
 
 
-# files = glob.glob(loc+'6*.nc') # This bit of code is looking for all the eddy files that start with a '6' (so subsetting to something more manageable)
-files = [os.path.join(loc,'666884.nc'] # But here you can see you can also just provide files manually (example of of the South Atlantic eddy)
+    # files = glob.glob(loc+'6*.nc') # This bit of code is looking for all the eddy files that start with a '6' (so subsetting to something more manageable)
+    files = [os.path.join(loc,'679331.nc')] # But here you can see you can also just provide files manually (example of of the South Atlantic eddy)
 
-print(files)
-# This loop cycles through each eddy file and runs the matching script (and then outputs all the Argo matches to the argo_out table)
-for file in files:
-    print(file)
-    file_s = file.split('\\')[-1].split('.')
-    print(file_s)
-    argo_out = check_argo(file,data,argo_out,plot=True)
+    print(files)
+    # This loop cycles through each eddy file and runs the matching script (and then outputs all the Argo matches to the argo_out table)
+    for file in files:
+        print(file)
+        file_s = file.split('\\')[-1].split('.')
+        print(file_s)
+        argo_out = check_argo(file,data,argo_out,plot=False) # Toggle the plot = True if you want to see the matching for each timestep
 
-argo_out.to_csv('argo_matched.csv',sep=',') # This saves that argo_out table to a file
+    argo_out.to_csv('argo_matched.csv',sep=',') # This saves that argo_out table to a file
 
-data = load_argofile('argo_matched.csv',skiprows=0) # Load the argo_out table, so we dont have to run the matching again.
-print(data)
-uni = np.unique(data['eddy_file']) # Looking for the unique eddies in the file
-print(uni)
+    data = load_argofile('argo_matched.csv',skiprows=0) # Load the argo_out table, so we dont have to run the matching again.
+    print(data)
+    uni = np.unique(data['eddy_file']) # Looking for the unique eddies in the file
+    print(uni)
 
-# Cycling through the argo_out table to find the number of argo profiles in each eddy and prints it out.
-# This finds the eddy with the most argo matches.
-t = 0
-for i in range(len(uni)):
-    f = np.where(data['eddy_file'] == uni[i])[0]
-    print(uni[i] + ' = ' + str(len(f)))
-    if t < len(f):
-        t = len(f)
-        a = uni[i]
+    # Cycling through the argo_out table to find the number of argo profiles in each eddy and prints it out.
+    # This finds the eddy with the most argo matches.
+    t = 0
+    for i in range(len(uni)):
+        f = np.where(data['eddy_file'] == uni[i])[0]
+        print(uni[i] + ' = ' + str(len(f)))
+        if t < len(f):
+            t = len(f)
+            a = uni[i]
 
-print(t)
-print(a)
+    print(t)
+    print(a)
 
-# Quick bit of plotting to show you the eddy track with the most argo profilers matched.
-c = Dataset(a,'r')
-lon = np.array(c['longitude'])
-lat = np.array(c['latitude'])
-c.close()
+    # Quick bit of plotting to show you the eddy track with the most argo profilers matched.
+    c = Dataset(a,'r')
+    lon = np.array(c['longitude'])
+    lat = np.array(c['latitude'])
+    c.close()
 
-plt.figure()
-f = np.where(data['eddy_file'] == a)[0]
-print(f)
-plt.scatter(lon,lat)
-plt.scatter(data['longitude'][f],data['latitude'][f])
-plt.show()
+    plt.figure()
+    f = np.where(data['eddy_file'] == a)[0]
+    print(f)
+    plt.scatter(lon,lat)
+    plt.scatter(data['longitude'][f],data['latitude'][f])
+
+
+    #Lets download the Argo data for this specific eddy
+    argo_download(argo_save_loc,data) # This takes the data variable (that is saved as 'argo_matched.csv', and downloads the netcdf files.
+
+    #Example basic plotting that Dan showed
+    col = 3
+    row= int(np.ceil(len(data)/col/5))
+    fig,ax = plt.subplots(row,col,figsize=(col*7,row*7))
+    ax = ax.ravel()
+    t = 0
+    for i in range(len(data)):
+        c = Dataset(os.path.join(argo_save_loc,data['argo_file'][i]),'r')
+        depth = np.array(c['PRES_ADJUSTED'])
+        temp = np.array(c['TEMP_ADJUSTED'])
+        temp[temp>40] = np.nan
+        c.close()
+
+
+        if len(depth.shape) > 1:
+            for j in [0]:#range(depth.shape[0]):
+                ax[t].plot(temp[j,:],depth[j,:],label=str(data['year'][i]) + '/' +str(data['month'][i])+ '/' +str(data['day'][i]))
+        else:
+            ax[t].plot(temp,depth,str(data['year'][i]) + '/' +str(data['month'][i])+ '/' +str(data['day'][i]))
+
+        ax[t].set_ylim([0,2000])
+        ax[t].invert_yaxis()
+        if i !=0:
+            if i % 5 == 0:
+                ax[t].legend(fontsize=8)
+                t=t+1
+    plt.show()
