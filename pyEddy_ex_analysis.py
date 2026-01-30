@@ -86,11 +86,12 @@ plot_figure_4_bio = False
 plot_figure_5 = False
 plot_figure_5_bio = False
 plot_figure_5_compare=False
-estimate_cumulative =False
+estimate_cumulative =True
 plot_figure_socat = False
 plot_figure_socat_bio = False
 decadal_stats = False
-assess_missing = True
+assess_missing = False
+seasonal_flux_difference = False
 """
 Figure 1
 """
@@ -376,7 +377,7 @@ if plot_figure_3:
     c.close()
     long,latg = np.meshgrid(lon,lat)
     x,y = m3(long,latg)
-    ax[2].pcolor(x,y,np.transpose(eddies),vmin=0,vmax=30,cmap=cmocean.cm.dense)
+    ax[2].pcolor(x,y,np.transpose(eddies),vmin=0,vmax=10,cmap=cmocean.cm.dense)
     # #Cyclonic
     for i in  np.unique(eddy_cy['track']):
         print(i)
@@ -403,7 +404,7 @@ if plot_figure_3:
     c.close()
     long,latg = np.meshgrid(lon,lat)
     x,y = m3(long,latg)
-    b = ax[3].pcolor(x,y,np.transpose(eddies),vmin=0,vmax=30,cmap=cmocean.cm.dense)
+    b = ax[3].pcolor(x,y,np.transpose(eddies),vmin=0,vmax=10,cmap=cmocean.cm.dense)
 
     ax[1].set_xlabel('Longitude',labelpad=30)
     ax[1].set_ylabel('Latitude',labelpad=45)
@@ -411,8 +412,8 @@ if plot_figure_3:
     ax[0].set_ylabel('Latitude',labelpad=45)
     eplt.base_tracks_end(ax[0],m)
     eplt.base_tracks_end(ax[1],m2)
-    eplt.base_tracks_end(ax[2],m3)
-    eplt.base_tracks_end(ax[3],m4)
+    eplt.base_tracks_end(ax[2],m3,fill_color='#e9f2f2')
+    eplt.base_tracks_end(ax[3],m4,fill_color='#e9f2f2')
     cbar = fig.add_axes([0.95,0.2,0.02,0.6])
     cbar2 = fig.add_axes([0.44,0.2,0.02,0.6])
     cba = fig.colorbar(a,cax=cbar2)
@@ -1752,3 +1753,206 @@ if assess_missing:
     print(np.max(outs))
     print(np.min(outs))
     print(np.std(outs))
+
+if seasonal_flux_difference:
+    defin_north = [[12,1,2],[3,4,5],[6,7,8],[9,10,11]]
+    defin_south = [[6,7,8],[9,10,11],[12,1,2],[3,4,5]]
+
+    win = []
+    win_val = []
+    spr = []
+    spr_val = []
+    summ = []
+    summ_val = []
+    aut = []
+    aut_val = []
+
+    for i in np.unique(eddy_an['track']):
+        print(i)
+        if os.path.exists(output_loc+'/'+str(i)+'.nc') == True:
+            c = Dataset(output_loc+'/'+str(i)+'.nc','r')
+            #c = Dataset(i,'r')
+            time = np.array(c['month_time'])
+            lat = np.array(c['month_latitude'])
+            si = np.sign(lat[0])
+            time2 = []
+            for j in range(len(time)):
+                time2.append(pyEddy_m.date_con(time[j]).month)
+            time2 = np.array(time2)
+            #print(time2)
+            co2 = np.array(c['flux_in_physics'])
+            co2_unc = np.array(c['flux_unc_in_physics']) * np.abs(co2)
+            co2_o = np.array(c['flux_out_physics'])
+            co2_o_unc = np.array(c['flux_unc_out_physics']) * np.abs(co2_o)
+            co2_p = ((co2-co2_o)/np.abs(co2_o))*100
+            #print(co2_p)
+            if si == 1:
+                defin = defin_north
+            else:
+                defin = defin_south
+            for j in range(len(time)):
+                for k in range(len(defin)):
+                    if time2[j] in defin[k]:
+                        k2 = k
+                        break
+                #print(k2)
+                if k2 == 0:
+                    win.append([co2[j],co2_unc[j],co2_o[j],co2_o_unc[j]])
+                    win_val.append(co2_p[j])
+                elif k2 == 1:
+                    spr.append([co2[j],co2_unc[j],co2_o[j],co2_o_unc[j]])
+                    spr_val.append(co2_p[j])
+                elif k2 == 2:
+                    summ.append([co2[j],co2_unc[j],co2_o[j],co2_o_unc[j]])
+                    summ_val.append(co2_p[j])
+                elif k2 == 3:
+                    aut.append([co2[j],co2_unc[j],co2_o[j],co2_o_unc[j]])
+                    aut_val.append(co2_p[j])
+    win = np.array(win);spr = np.array(spr); summ = np.array(summ); aut = np.array(aut)
+    unc_win = unc_prop(win)
+    unc_spr = unc_prop(spr)
+    unc_summ = unc_prop(summ)
+    unc_aut = unc_prop(aut)
+
+
+
+    win_cy = []
+    win_val_cy = []
+    spr_cy = []
+    spr_val_cy = []
+    summ_cy = []
+    summ_val_cy = []
+    aut_cy = []
+    aut_val_cy = []
+
+    for i in np.unique(eddy_cy['track']):
+        print(i)
+        if os.path.exists(output_loc_cy+'/'+str(i)+'.nc') == True:
+            c = Dataset(output_loc_cy+'/'+str(i)+'.nc','r')
+            #c = Dataset(i,'r')
+            time = np.array(c['month_time'])
+            lat = np.array(c['month_latitude'])
+            si = np.sign(lat[0])
+            time2 = []
+            for j in range(len(time)):
+                time2.append(pyEddy_m.date_con(time[j]).month)
+            time2 = np.array(time2)
+            #print(time2)
+            co2 = np.array(c['flux_in_physics'])
+            co2_unc = np.array(c['flux_unc_in_physics']) * np.abs(co2)
+            co2_o = np.array(c['flux_out_physics'])
+            co2_o_unc = np.array(c['flux_unc_out_physics']) * np.abs(co2_o)
+            co2_p = ((co2-co2_o)/np.abs(co2_o))*100
+            #print(co2_p)
+            if si == 1:
+                defin = defin_north
+            else:
+                defin = defin_south
+            for j in range(len(time)):
+                for k in range(len(defin)):
+                    if time2[j] in defin[k]:
+                        k2 = k
+                        break
+                #print(k2)
+                if k2 == 0:
+                    win_cy.append([co2[j],co2_unc[j],co2_o[j],co2_o_unc[j]])
+                    win_val_cy.append(co2_p[j])
+                elif k2 == 1:
+                    spr_cy.append([co2[j],co2_unc[j],co2_o[j],co2_o_unc[j]])
+                    spr_val_cy.append(co2_p[j])
+                elif k2 == 2:
+                    summ_cy.append([co2[j],co2_unc[j],co2_o[j],co2_o_unc[j]])
+                    summ_val_cy.append(co2_p[j])
+                elif k2 == 3:
+                    aut_cy.append([co2[j],co2_unc[j],co2_o[j],co2_o_unc[j]])
+                    aut_val_cy.append(co2_p[j])
+    win_cy = np.array(win_cy);spr_cy = np.array(spr_cy); summ_cy = np.array(summ_cy); aut_cy = np.array(aut_cy)
+    unc_win_cy = unc_prop(win_cy)
+    unc_spr_cy = unc_prop(spr_cy)
+    unc_summ_cy = unc_prop(summ_cy)
+    unc_aut_cy = unc_prop(aut_cy)
+    print('Anticyclonic')
+    print(np.nanmedian(win_val))
+    print(unc_win)
+    print(np.nanmedian(spr_val))
+    print(unc_spr)
+    print(np.nanmedian(summ_val))
+    print(unc_summ)
+    print(np.nanmedian(aut_val))
+    print(unc_aut)
+    print('Cyclonic')
+    print(np.nanmedian(win_val_cy))
+    print(unc_win_cy)
+    print(np.nanmedian(spr_val_cy))
+    print(unc_spr_cy)
+    print(np.nanmedian(summ_val_cy))
+    print(unc_summ_cy)
+    print(np.nanmedian(aut_val_cy))
+    print(unc_aut_cy)
+
+    font = {'weight' : 'normal',
+            'size'   :20}
+    matplotlib.rc('font', **font)
+    line_widths = 3
+    xlims = [0.85,1.45]
+    lab= 'Change in eddy CO${_2}$ flux compared \nto the surrounding water CO${_2}$ flux (%)'
+    fig = plt.figure(figsize=(21,14))
+    gs = GridSpec(2,2, figure=fig, wspace=0.35,hspace=0.25,bottom=0.1,top=0.95,left=0.12,right=0.95)
+    ax = [fig.add_subplot(gs[0,0]),fig.add_subplot(gs[0,1]),fig.add_subplot(gs[1,0]),fig.add_subplot(gs[1,1])]
+    ax[0].boxplot([win_val,win_val_cy],boxprops = dict(linewidth=line_widths),labels=[f'Anticyclonic (N = {len(win_val)})\nMedian = {str(np.round(np.median(win_val),1))} $\pm$ {str(np.round(unc_win[2],1))} %',f'Cyclonic (N = {len(win_val_cy)})\nMedian = {str(np.round(np.median(win_val_cy),1))} $\pm$ {str(np.round(unc_win_cy[2],1))} %'],
+        medianprops = dict(linewidth=line_widths,color='r'),whiskerprops= dict(linewidth=line_widths),capprops=dict(linewidth=line_widths),positions=[1,1.3],widths=0.2)
+    med = np.median(win_val)
+    ax[0].fill_between([0.88,1.12],med-unc_win[2],med+unc_win[2],color='r',alpha=0.2)
+    ax[0].fill_between([0.88,1.12],med-(unc_win[2]/2),med+(unc_win[2]/2),color='r',alpha=0.4)
+
+    med = np.median(win_val_cy)
+    ax[0].fill_between([1.18,1.42],med-unc_win_cy[2],med+unc_win_cy[2],color='r',alpha=0.2)
+    ax[0].fill_between([1.18,1.42],med-(unc_win_cy[2]/2),med+(unc_win_cy[2]/2),color='r',alpha=0.4)
+
+
+
+    ax[1].boxplot([spr_val,spr_val_cy],boxprops = dict(linewidth=line_widths),labels=[f'Anticyclonic (N = {len(spr_val)})\nMedian = {str(np.round(np.median(spr_val),1))} $\pm$ {str(np.round(unc_spr[2],1))} %',f'Cyclonic (N = {len(spr_val_cy)})\nMedian = {str(np.round(np.median(spr_val_cy),1))} $\pm$ {str(np.round(unc_spr_cy[2],1))} %'],
+        medianprops = dict(linewidth=line_widths,color='r'),whiskerprops= dict(linewidth=line_widths),capprops=dict(linewidth=line_widths),positions=[1,1.3],widths=0.2)
+
+    med = np.median(spr_val)
+    ax[1].fill_between([0.88,1.12],med-unc_spr[2],med+unc_spr[2],color='r',alpha=0.2)
+    ax[1].fill_between([0.88,1.12],med-(unc_spr[2]/2),med+(unc_spr[2]/2),color='r',alpha=0.4)
+
+    med = np.median(spr_val_cy)
+    ax[1].fill_between([1.18,1.42],med-unc_spr_cy[2],med+unc_spr_cy[2],color='r',alpha=0.2)
+    ax[1].fill_between([1.18,1.42],med-(unc_spr_cy[2]/2),med+(unc_spr_cy[2]/2),color='r',alpha=0.4)
+
+    ax[2].boxplot([summ_val,summ_val_cy],boxprops = dict(linewidth=line_widths),labels=[f'Anticyclonic (N = {len(summ_val)})\nMedian = {str(np.round(np.median(summ_val),1))} $\pm$ {str(np.round(unc_summ[2],1))} %',f'Cyclonic (N = {len(summ_val_cy)})\nMedian = {str(np.round(np.median(summ_val_cy),1))} $\pm$ {str(np.round(unc_summ_cy[2],1))} %'],
+        medianprops = dict(linewidth=line_widths,color='r'),whiskerprops= dict(linewidth=line_widths),capprops=dict(linewidth=line_widths),positions=[1,1.3],widths=0.2)
+    med = np.median(summ_val)
+    ax[2].fill_between([0.88,1.12],med-unc_summ[2],med+unc_summ[2],color='r',alpha=0.2)
+    ax[2].fill_between([0.88,1.12],med-(unc_summ[2]/2),med+(unc_summ[2]/2),color='r',alpha=0.4)
+
+    med = np.median(summ_val_cy)
+    ax[2].fill_between([1.18,1.42],med-unc_summ_cy[2],med+unc_summ_cy[2],color='r',alpha=0.2)
+    ax[2].fill_between([1.18,1.42],med-(unc_summ_cy[2]/2),med+(unc_summ_cy[2]/2),color='r',alpha=0.4)
+
+    ax[3].boxplot([aut_val,aut_val_cy],boxprops = dict(linewidth=line_widths),labels=[f'Anticyclonic (N = {len(aut_val)})\nMedian = {str(np.round(np.median(aut_val),1))} $\pm$ {str(np.round(unc_aut[2],1))} %',f'Cyclonic (N = {len(aut_val_cy)})\nMedian = {str(np.round(np.median(aut_val_cy),1))} $\pm$ {str(np.round(unc_aut_cy[2],1))} %'],
+        medianprops = dict(linewidth=line_widths,color='r'),whiskerprops= dict(linewidth=line_widths),capprops=dict(linewidth=line_widths),positions=[1,1.3],widths=0.2)
+    med = np.median(aut_val)
+    ax[3].fill_between([0.88,1.12],med-unc_aut[2],med+unc_aut[2],color='r',alpha=0.2)
+    ax[3].fill_between([0.88,1.12],med-(unc_aut[2]/2),med+(unc_aut[2]/2),color='r',alpha=0.4)
+
+    med = np.median(aut_val_cy)
+    ax[3].fill_between([1.18,1.42],med-unc_aut_cy[2],med+unc_aut_cy[2],color='r',alpha=0.2)
+    ax[3].fill_between([1.18,1.42],med-(unc_aut_cy[2]/2),med+(unc_aut_cy[2]/2),color='r',alpha=0.4)
+    ax[0].text(-0.25,0.58,'Winter',transform=ax[0].transAxes,va='top',fontweight='bold',fontsize = 32,horizontalalignment='center', verticalalignment='center',rotation=90)
+
+    ax[1].text(-0.25,0.58,'Spring',transform=ax[1].transAxes,va='top',fontweight='bold',fontsize = 32,horizontalalignment='center', verticalalignment='center',rotation=90)
+
+    ax[2].text(-0.25,0.58,'Summer',transform=ax[2].transAxes,va='top',fontweight='bold',fontsize = 32,horizontalalignment='center', verticalalignment='center',rotation=90)
+
+    ax[3].text(-0.25,0.58,'Autumn',transform=ax[3].transAxes,va='top',fontweight='bold',fontsize = 32,horizontalalignment='center', verticalalignment='center',rotation=90)
+
+    for i in range(len(ax)):
+        ax[i].set_ylim([-50,50])
+        ax[i].set_xlim([0.85,1.45])
+        ax[i].plot(xlims,[0,0],'k--')
+        ax[i].set_ylabel(lab)
+        ax[i].text(0.90,0.96,f'({let[i]})',transform=ax[i].transAxes,va='top',fontweight='bold',fontsize = 24)
+    fig.savefig('figs/manuscript/flux_seasonal_compare.png',dpi=300)
