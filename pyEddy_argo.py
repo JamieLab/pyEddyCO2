@@ -46,7 +46,8 @@ def convert_time(argo,headername='date',temp_file=False):
         data.to_csv(temp_file,sep=',',index = False)
     return data
 
-def check_argo(file,argo_data,argo_out,plot=False):
+def check_argo(file,argo_data,argo_out,plot=False,radius_out = 3):
+    t = np.arange(0,2*np.pi,0.01)
     """
     Function to check whether an eddy colocates with Argo profilers
     """
@@ -58,6 +59,9 @@ def check_argo(file,argo_data,argo_out,plot=False):
     time = np.array(c['time'])
     con_lat = np.array(c['effective_contour_latitude'])
     con_lon = np.array(c['effective_contour_longitude'])
+    radius = np.array(c['effective_radius'])
+    lat_rad = radius/1000 / 111.32 * radius_out
+    lon_rad = radius/1000 / 111.32 *np.cos(np.radians(lat)) * radius_out
     c.close()
 
     for i in range(len(time)):
@@ -71,14 +75,20 @@ def check_argo(file,argo_data,argo_out,plot=False):
         latc = lat[i]
         lons = con_lon[i,:]
         lats = con_lat[i,:]
+        lat_rads = lat_rad[i]
+        lon_rads = lon_rad[i]
+        x = lonc + lon_rads*np.cos(t)
+        y = latc + lat_rads*np.sin(t)
+
         if (lats[0] != 0.0) & (lons[0] != 180.0):
             f = np.where((argo_data['Year'] == yr) & (argo_data['Month'] == mon) & (argo_data['Day'] == day))[0]
             if len(f)>0:
                 radmax = Edeobs.radius_check(lonc,latc,lons,lats)
-                if (lonc - (radmax*2) < -180) or (lonc + (radmax*2) > 180):
+                if (lonc - (radmax*4) < -180) or (lonc + (radmax*4) > 180):
                     print('Near the dateline')
                     #lons[lons<-180] = lons[lons<-180] + 360
                     path = mpltPath.Path(np.transpose([lons,lats]))
+                    path_out = mpltPath.Path(np.transpose([x,y]))
 
                     lon_socat_temp = np.array(argo_data['longitude'][f])
                     h = np.where(np.sign(lon_socat_temp) != np.sign(lonc))
@@ -86,13 +96,16 @@ def check_argo(file,argo_data,argo_out,plot=False):
                     l = np.transpose([lon_socat_temp,np.array(argo_data['latitude'][f])])
                 else:
                     path = mpltPath.Path(np.transpose([lons,lats]))
+                    path_out = mpltPath.Path(np.transpose([x,y]))
                     l = np.transpose([np.array(argo_data['longitude'][f]),np.array(argo_data['latitude'][f])])
                 #print(l)
                 inp = path.contains_points(l)
+                inp2 = path_out.contains_points(l)
                 #print(inp)
                 if plot:
                     plt.figure()
                     plt.scatter(lons,lats)
+                    plt.scatter(x,y)
                     plt.scatter(l[:,0],l[:,1])
                     plt.show()
                 g = np.where(inp == True)[0]
@@ -107,9 +120,34 @@ def check_argo(file,argo_data,argo_out,plot=False):
                             'day': day,
                             'latitude': argo_data['latitude'][f[g[j]]],
                             'longitude': argo_data['longitude'][f[g[j]]],
-                            'eddy_index': i
+                            'eddy_index': i,
+                            'inside': 1,
+                            'outside': 0,
                             }])
                         argo_out = pd.concat([argo_out,a],ignore_index=True,axis=0)
+                g = np.where(inp2 == True)[0]
+                if len(g) > 0:
+                    print('Yes')
+
+                    for j in range(len(g)):
+                        print(np.array(l[g[j],:]))
+                        inp3 = path.contains_points([l[g[j],:]])
+                        if not inp3[0]:
+                            print('Not Inside Eddy')
+                            a = pd.DataFrame([{'argo_file': argo_data['file'][f[g[j]]],
+                                'eddy_file': file,
+                                'year':yr,
+                                'month': mon,
+                                'day': day,
+                                'latitude': argo_data['latitude'][f[g[j]]],
+                                'longitude': argo_data['longitude'][f[g[j]]],
+                                'eddy_index': i,
+                                'inside': 0,
+                                'outside': 1,
+                                }])
+                            argo_out = pd.concat([argo_out,a],ignore_index=True,axis=0)
+                        else:
+                            print('Inside Eddy')
         else:
             print('Broken eddy polygon...')
 
@@ -171,7 +209,7 @@ if __name__ == '__main__':
 
     # Load the new generated file (I do this so we dont have to keep rerunning the date conversion).
     data = load_argofile(f[0]+'_DJF.txt',skiprows=0)
-    argo_out = pd.DataFrame(columns=['argo_file','eddy_file','year','month','day','latitude','longitude','eddy_index']) # Here I setup the output pandas table
+    argo_out = pd.DataFrame(columns=['argo_file','eddy_file','year','month','day','latitude','longitude','eddy_index','isnide','outside']) # Here I setup the output pandas table
 
 
     # files = glob.glob(loc+'6*.nc') # This bit of code is looking for all the eddy files that start with a '6' (so subsetting to something more manageable)
@@ -183,7 +221,7 @@ if __name__ == '__main__':
         print(file)
         file_s = file.split('\\')[-1].split('.')
         print(file_s)
-        argo_out = check_argo(file,data,argo_out,plot=False) # Toggle the plot = True if you want to see the matching for each timestep
+        argo_out = check_argo(file,data,argo_out,plot=False,radius_out=3) # Toggle the plot = True if you want to see the matching for each timestep - Set radius_out for the maximum radius for the outside Argo check.
 
     argo_out.to_csv('argo_matched.csv',sep=',') # This saves that argo_out table to a file
 
@@ -215,7 +253,13 @@ if __name__ == '__main__':
     f = np.where(data['eddy_file'] == a)[0]
     print(f)
     plt.scatter(lon,lat)
-    plt.scatter(data['longitude'][f],data['latitude'][f])
+
+    #Find all the Argo profilers inside the eddies (where the 'inside' column is one)
+    g = np.where(data['inside'][f] == 1)[0]
+    plt.scatter(data['longitude'][g],data['latitude'][g])
+    #Find all the Argo profilers inside the eddies (where the 'outside' column is one)
+    g = np.where(data['outside'][f] == 1)[0]
+    plt.scatter(data['longitude'][g],data['latitude'][g])
 
 
     #Lets download the Argo data for this specific eddy
