@@ -123,6 +123,7 @@ def check_argo(file,argo_data,argo_out,plot=False,radius_out = 3):
                             'eddy_index': i,
                             'inside': 1,
                             'outside': 0,
+                            'distance_to_centre_km': getDistanceByHaversine([lonc,latc],[argo_data['longitude'][f[g[j]]],argo_data['latitude'][f[g[j]]]])
                             }])
                         argo_out = pd.concat([argo_out,a],ignore_index=True,axis=0)
                 g = np.where(inp2 == True)[0]
@@ -144,6 +145,7 @@ def check_argo(file,argo_data,argo_out,plot=False,radius_out = 3):
                                 'eddy_index': i,
                                 'inside': 0,
                                 'outside': 1,
+                                'distance_to_centre_km': getDistanceByHaversine([lonc,latc],[argo_data['longitude'][f[g[j]]],argo_data['latitude'][f[g[j]]]])
                                 }])
                             argo_out = pd.concat([argo_out,a],ignore_index=True,axis=0)
                         else:
@@ -191,6 +193,35 @@ def argo_download(argo_loc,argo_list):
             ftp.retrbinary("RETR " + loc+'/'+'/'.join(l) ,open(os.path.join(argo_loc,argo_list['argo_file'].iloc[i]), 'wb').write)
             ftp.close()
 
+EARTHRADIUS = 6371.0
+def getDistanceByHaversine(loc1, loc2):
+    '''Haversine formula - give coordinates as a 2D numpy array of
+    (lat_denter link description hereecimal,lon_decimal) pairs'''
+    """
+    Code from: https://stackoverflow.com/questions/22081503/distance-matrix-creation-using-nparray-with-pdist-and-squareform
+    """
+    #
+    # "unpack" our numpy array, this extracts column wise arrays
+    lat1 = loc1[1]
+    lon1 = loc1[0]
+    lat2 = loc2[1]
+    lon2 = loc2[0]
+    #
+    # convert to radians ##### Completely identical
+    lon1 = lon1 * np.pi / 180.0
+    lon2 = lon2 * np.pi / 180.0
+    lat1 = lat1 * np.pi / 180.0
+    lat2 = lat2 * np.pi / 180.0
+    #
+    # haversine formula #### Same, but atan2 named arctan2 in numpy
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = (np.sin(dlat/2))**2 + np.cos(lat1) * np.cos(lat2) * (np.sin(dlon/2.0))**2
+    c = 2.0 * np.arctan2(np.sqrt(a), np.sqrt(1.0-a))
+    km = EARTHRADIUS * c
+    #print(km)
+    return km
+
 if __name__ == '__main__':
     """
     Setup bits and file paths
@@ -209,7 +240,7 @@ if __name__ == '__main__':
 
     # Load the new generated file (I do this so we dont have to keep rerunning the date conversion).
     data = load_argofile(f[0]+'_DJF.txt',skiprows=0)
-    argo_out = pd.DataFrame(columns=['argo_file','eddy_file','year','month','day','latitude','longitude','eddy_index','isnide','outside']) # Here I setup the output pandas table
+    argo_out = pd.DataFrame(columns=['argo_file','eddy_file','year','month','day','latitude','longitude','eddy_index','isnide','outside','distance_to_centre_km']) # Here I setup the output pandas table
 
 
     # files = glob.glob(loc+'6*.nc') # This bit of code is looking for all the eddy files that start with a '6' (so subsetting to something more manageable)
